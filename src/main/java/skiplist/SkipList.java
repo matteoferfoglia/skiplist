@@ -410,7 +410,7 @@ public class SkipList<K extends Comparable<K>, V> implements SortedMap<K, V>, Se
         @SuppressWarnings("unchecked")  // generic array creation
         @NotNull
         private final SkipListNode<K, V>[] rightmostNodes =
-                (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(SkipListNode[]::new);
+                (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
         /**
          * The current node, initialized with {@link #header} at the search of the search.
          */

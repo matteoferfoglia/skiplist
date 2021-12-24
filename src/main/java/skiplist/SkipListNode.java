@@ -8,6 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * An instance of this class represents a node of {@link SkipList}.
@@ -80,7 +81,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
         return Arrays.stream(forwardPointers)
                 .sequential()
                 .map(skipListNode -> skipListNode != null ? skipListNode.getKey() : null)
-                .toList();
+                .collect(Collectors.toList());
     }
 
     @Override

@@ -1,0 +1,4 @@
+# JitPack config
+
+jdk:
+  - openjdk10

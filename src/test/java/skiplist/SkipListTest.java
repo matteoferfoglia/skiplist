@@ -215,7 +215,7 @@ class SkipListTest {
 
     @Test
     void keySetContainsAllKeysOrdered() {
-        var keys = MAP_OF_NODES_TO_ADD_IN_TESTS.keySet().stream().sorted().toList();
+        var keys = MAP_OF_NODES_TO_ADD_IN_TESTS.keySet().stream().sorted().collect(Collectors.toUnmodifiableList());
         skipList.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
         assert skipList.size() == keys.size();
         int i = 0;
