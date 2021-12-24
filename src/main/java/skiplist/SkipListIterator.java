@@ -7,14 +7,14 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 
 /**
- * Iterator for {@link SkipList}.
+ * Iterator for {@link SkipListMap}.
  *
  * @param <K> The type of the keys.
  * @param <V> The type of the values.
  * @author Matteo Ferfoglia
  */
 public class SkipListIterator<K extends Comparable<K>, V> implements Iterator<K> {
-    // implicitly tested while testing SkipList
+    // implicitly tested while testing SkipListMap
 
     /**
      * The lowest {@link SkipListNode} level.
@@ -34,7 +34,7 @@ public class SkipListIterator<K extends Comparable<K>, V> implements Iterator<K>
     /**
      * Constructs an iterator where iterations start from the
      * node next to the given one (e.g., if you want to iterate from
-     * the beginning, you have to pass the header of the {@link SkipList}
+     * the beginning, you have to pass the header of the {@link SkipListMap}
      * and the iterations will start from the first node following the
      * header, i.e., the header will not take part to the iterations).
      *

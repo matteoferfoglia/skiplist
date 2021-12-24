@@ -11,7 +11,7 @@ import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
- * An instance of this class represents a node of {@link SkipList}.
+ * An instance of this class represents a node of {@link SkipListMap}.
  * Each node has a key and a corresponding value.
  *
  * @param <K> The type of the key.
@@ -69,7 +69,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
     public String toString() {
         return "{key: " + key
                 + ", value: " + value
-                + ", forwardToKeys:" + getForwardPointersKeys() + "}";
+                + ", forwardsToKeys: " + getForwardPointersKeys() + "}";
     }
 
     /**
@@ -77,7 +77,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      * or with null elements in correspondence of null forward pointers.
      */
     @NotNull
-    private List<K> getForwardPointersKeys() {
+    protected List<K> getForwardPointersKeys() {
         return Arrays.stream(forwardPointers)
                 .sequential()
                 .map(skipListNode -> skipListNode != null ? skipListNode.getKey() : null)
@@ -101,7 +101,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      * any forward pointers) and coincides with the number of forward pointers of
      * this instance.
      */
-    private int getLevel() {
+    protected int getLevel() {
         return forwardPointers.length;
     }
 

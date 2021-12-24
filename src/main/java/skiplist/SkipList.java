@@ -4,343 +4,213 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.Serializable;
+import java.lang.reflect.Array;
 import java.util.*;
-import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.function.Predicate;
 
 /**
- * Implementation of a SkipList, as described in "Skip Lists: A Probabilistic Alternative
- * to Balanced Trees", by William Pugh.
- *
- * @param <K> The type of the key of each node of this instance.
- * @param <V> The type of the value of each node of this instance.
- * @author Matteo Ferfoglia
+ * Implementation of a SkipList, using the keySet of a {@link SkipListMap}.
  */
-@SuppressWarnings("UnusedReturnValue")
-// returned values of some methods are not used in project, but they can be useful
-public class SkipList<K extends Comparable<K>, V> implements SortedMap<K, V>, Serializable, Iterable<K> {
+public class SkipList<T extends Comparable<T>> implements List<T>, Serializable {
 
     /**
-     * The maximum value (constant, this is a parameter) to which levels
-     * of nodes are capped.
+     * The {@link SkipListMap} from which this list is created.
      */
-    public static final int MAX_LEVEL = 16;
-
-    /**
-     * The default fraction of the nodes with level i pointers that also have level i+1 pointers.
-     */
-    private static final double DEFAULT_P = 1.0 / 2;
-    /**
-     * The minimum value (excluded) for {@link #P}.
-     */
-    private static final double MIN_P_EXCLUDED = 0;
-    /**
-     * The maximum value (included) for {@link #P}.
-     */
-    private static final double MAX_P_INCLUDED = 1;
-    /**
-     * The fraction of the nodes with level i pointers that also have level i+1 pointers.
-     */
-    private final double P;
-    /**
-     * The number of elements in this list.
-     */
-    private int size = 0;
-
-    /**
-     * Level of the list (see description of {@link #getListLevel()}).
-     */
-    private int listLevel = 0;
-
-    /**
-     * The header of a skipList has forward pointers at level one through {@link #MAX_LEVEL}.
-     * The forward pointers of the header at levels higher than the current maximum level of
-     * the list points to null.
-     */
-    @SuppressWarnings("NotNullFieldNotInitialized") // initialized by initList method invoked by constructor
     @NotNull
-    private SkipListNode<K, V> header;
+    private final SkipListMap<T, ?> skipListMap;
 
     /**
-     * Constructor.
-     *
-     * @param P The fraction of the nodes with level i pointers that also have level i+1 pointers.
+     * @param P See the description of the parameter for {@link SkipListMap}.
      */
-    public SkipList(final double P) {
-        if (MIN_P_EXCLUDED < P && P <= MAX_P_INCLUDED) {
-            this.P = P;
-            initList();
-            assert size == 0;
-            assert listLevel == 0;
-            assert header != null;
-        } else {
-            throw new IllegalArgumentException(
-                    "P value must be such that " + MIN_P_EXCLUDED + "<P<=" + MAX_P_INCLUDED);
-        }
+    public SkipList(double P) {
+        skipListMap = new SkipListMap<>(P);
     }
 
     /**
-     * Constructor. {@link #DEFAULT_P} value is used.
+     * Default constructor
      */
     public SkipList() {
-        this(DEFAULT_P);
+        skipListMap = new SkipListMap<>();
     }
 
-    /**
-     * Initializes fields of this class.
-     */
-    private void initList() {
-        header = new SkipListNode<>(null, null, MAX_LEVEL);
-        listLevel = 0;
-        size = 0;
+    @Override
+    public int size() {
+        return skipListMap.size();
     }
 
-    /**
-     * @return the level (indexed 0 through i-1) of this instance (the level is 0
-     * if the list is empty).
-     */
-    public synchronized int getListLevel() {
-        return listLevel;
+    @Override
+    public boolean isEmpty() {
+        return skipListMap.isEmpty();
+    }
+
+    @Override
+    public boolean contains(Object o) {
+        return skipListMap.containsKey(o);
+    }
+
+    @NotNull
+    @Override
+    public Iterator<T> iterator() {
+        return skipListMap.iterator();
+    }
+
+    @NotNull
+    @Override
+    public Object[] toArray() { // TODO: test
+        return skipListMap.entrySet().toArray();
+    }
+
+    @NotNull
+    @Override
+    public <T1> T1[] toArray(@NotNull T1[] a) { // TODO: test
+        return skipListMap.entrySet().toArray((T1[]) Array.newInstance(a.getClass(), 0));
+    }
+
+    @Override
+    public boolean add(@NotNull T t) {
+        skipListMap.put(Objects.requireNonNull(t), null);
+        return true;
+    }
+
+    @Override
+    public boolean remove(@NotNull Object o) {
+        var old = skipListMap.remove(o);
+        return old != null;
+    }
+
+    @Override
+    public boolean containsAll(@NotNull Collection<?> c) {  // TODO: test
+        return c.stream().unordered().filter(e -> skipListMap.containsKey(c)).count() == c.size();
+    }
+
+    @Override
+    public boolean addAll(@NotNull Collection<? extends T> c) { // TODO: test
+        boolean collectionWillChange = !containsAll(c);
+        if (collectionWillChange) {
+            c.stream().sorted().forEach(this::add);
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean addAll(int index, @NotNull Collection<? extends T> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean removeAll(@NotNull Collection<?> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public boolean retainAll(@NotNull Collection<?> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void clear() {
+        skipListMap.clear();
     }
 
     @Nullable
     @Override
-    public Comparator<? super K> comparator() {
-        return null;    // use natural ordering for keys
-    }
+    public T get(int index) {   // TODO: test
+        if ((index < 0 || index >= size())) {
+            throw new IndexOutOfBoundsException();
+        } else {
+            SkipListIterator<T, ?> iterator = (SkipListIterator<T, ?>) skipListMap.iterator();
+            T currentValue;
+            int i = 0;
+            while ((currentValue = iterator.next()) != null && i < index) {
+                i++;
+            }
 
-    @NotNull
-    @Override
-    public synchronized SortedMap<K, V> subMap(@NotNull K fromKey, @NotNull K toKey) {
-        return subMapLastIncluded(fromKey, toKey, false);
-    }
-
-    /**
-     * Similar to {@link #subMap(Comparable, Comparable)}, but this
-     * method allows deciding if the last key must be included in the returned
-     * {@link Map}.
-     *
-     * @param fromKey      Initial key (included).
-     * @param toKey        Last key, eventually included, depending on the third parameter.
-     * @param lastIncluded If true, the element corresponding to the last key
-     *                     will be included, otherwise will not.
-     * @return the sub-map with nodes corresponding to the desired keys.
-     */
-    @NotNull
-    private synchronized SkipList<K, V> subMapLastIncluded(@NotNull K fromKey, @NotNull K toKey, boolean lastIncluded) {
-        SkipList<K, V> subMap = new SkipList<>(P);
-        var nextNode = findNode(fromKey);
-
-        final Predicate<SkipListNode<K, V>> toAdd = node -> {
-            if (node == null) return false;
-            assert node.getKey() != null;
-            var comparison = node.getKey().compareTo(toKey);
-            return lastIncluded ? comparison <= 0 : comparison < 0;
-        };
-
-        assert nextNode == null || nextNode.getKey() != null;
-        if (toAdd.test(nextNode)) {
-            assert nextNode != null;
-            subMap.put(nextNode);
+            assert i - 1 == index;
+            return currentValue;
         }
+    }
 
-        var skipListIterator = new SkipListIterator<>(nextNode);
-        while (skipListIterator.hasNext()) {
-            nextNode = skipListIterator.nextNode();
-            assert nextNode.getKey() != null;
-            if (toAdd.test(nextNode)) {
-                subMap.put(nextNode);
+    @Override
+    public T set(int index, T element) {
+        throw new UnsupportedOperationException();  // cannot set at specific position, order is decided by the data-structure
+    }
+
+    @Override
+    public void add(int index, T element) {
+        throw new UnsupportedOperationException();  // cannot set at specific position, order is decided by the data-structure
+    }
+
+    @Nullable
+    @Override
+    public T remove(int index) {
+        @Nullable var keyAtIndex = get(index);
+        if (keyAtIndex != null) {
+            skipListMap.remove(keyAtIndex);
+        }
+        return keyAtIndex;
+    }
+
+    @Override
+    public int indexOf(Object o) {  // TODO: test (must respect its contract)
+        int i = 0;
+        for (var k : skipListMap) {
+            if (k.equals(o)) {
+                break;
             } else {
-                break;  // list is sorted: if here, no more node have to be added in the sublist
+                i++;
             }
         }
+        return i >= size() ? -1 : i;
+    }
 
-        return subMap;
+    @Override
+    public int lastIndexOf(Object o) {
+        return indexOf(o);  // nu duplicates are allowed
     }
 
     @NotNull
     @Override
-    public synchronized SortedMap<K, V> headMap(@NotNull K toKey) {
-        return subMap(firstKey(), toKey);
+    public ListIterator<T> listIterator() {
+        return new SkipListIteratorList();
     }
 
     @NotNull
     @Override
-    public synchronized SortedMap<K, V> tailMap(@NotNull K fromKey) {
-        return subMapLastIncluded(fromKey, lastKey(), true);
+    public ListIterator<T> listIterator(int index) {
+        return new SkipListIteratorList(index);
     }
 
     @NotNull
     @Override
-    public synchronized K firstKey() {   // implicitly tested with tailMap(..) / headMap(..)
-        if (size == 0) {
-            throw new NoSuchElementException();
+    public List<T> subList(int fromIndex, int toIndex) {    // TODO: test
+        if (fromIndex < 0 || fromIndex > toIndex || toIndex >= size()) {
+            throw new IndexOutOfBoundsException();
+        }
+        var fromIndexKey = get(fromIndex);
+        var toIndexKey = get(toIndex);
+        if (fromIndexKey != null && toIndexKey != null) {
+            return new SkipList<>() {{
+                addAll(skipListMap.subMap(get(fromIndex), get(toIndex)).keySet());
+            }};
         } else {
-            final int FIRST_NODE_LEVEL_INDEX = 0;
-            var firstNode = header.getNext(FIRST_NODE_LEVEL_INDEX);
-            assert firstNode != null;   // if null, size had to be 0
-            assert firstNode.getKey() != null;
-            return firstNode.getKey();
+            throw new IllegalStateException("This should never happen (IndexOutofBound eventually already thrown).");
         }
     }
 
-    @NotNull
     @Override
-    public synchronized K lastKey() {   // implicitly tested with tailMap(..) / headMap(..)
-        var skipListIterator = new SkipListIterator<>(header);
-        var lastKey = skipListIterator.next();  // throw if empty
-        while (skipListIterator.hasNext()) {
-            lastKey = skipListIterator.next();
-        }
-        assert lastKey != null;
-        return lastKey;
-    }
-
-    @Override
-    public synchronized int size() {
-        return size;
-    }
-
-    @Override
-    public synchronized boolean isEmpty() {
-        return size() == 0;
-    }
-
-    @Override
-    public synchronized boolean containsKey(Object key) {
-        return findNode(key) != null;
-    }
-
-    @Override
-    public synchronized boolean containsValue(Object value) {
-        return values().contains(value);
-    }
-
-    @Nullable
-    @Override
-    public synchronized V get(Object key) {
-        var node = findNode(key);
-        return node == null ? null : node.getValue();
-    }
-
-    /**
-     * @param key The key to search. It cannot be null.
-     * @return The found node for the given key or null if not found.
-     */
-    @Nullable
-    private synchronized SkipListNode<K, V> findNode(@NotNull Object key) {
-        return new NodeFinder(key).foundNode;
-    }
-
-    @Nullable
-    @Override
-    public synchronized V put(K key, V value) {
-
-        @NotNull var nodeFinder = new NodeFinder(key);
-        @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.foundNode;
-        @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
-
-        V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
-        if (nodeEventuallyAlreadyPresent != null) {
-            oldValue = nodeEventuallyAlreadyPresent.getValue();
-            nodeEventuallyAlreadyPresent.setValue(value);
-        } else {
-            // oldValue is null by default because the node at the specified key was not present.
-            var randomLevel = generateRandomLevel();    // the level for the new node
-            if (randomLevel > listLevel) {
-                listLevel = randomLevel;    // update the level of the list if the new node to insert has a level higher than the current level list
-            }
-            var nodeToInsert = new SkipListNode<>(key, value, randomLevel);
-            for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
-                var rightmostNodeThisLevel = rightmostNodesLowerThanGivenKey[level];
-                nodeToInsert.setNext(level, rightmostNodeThisLevel.getNext(level));
-                rightmostNodeThisLevel.setNext(level, nodeToInsert);
-            }
-            size++;
-        }
-        return oldValue;
-    }
-
-    /**
-     * Like {@link #put(Comparable, Object)}, but allows to add a node
-     * specifying the node instead of key and value separately.
-     *
-     * @param node The node to add to this instance.
-     * @return the previous value associated with key, or null if there
-     * was no mapping for key.
-     */
-    public synchronized V put(@NotNull SkipListNode<K, V> node) {
-        return put(Objects.requireNonNull(node).getKey(), node.getValue());
-    }
-
-    /**
-     * @return a random level between 1 (included) and {@link #MAX_LEVEL} (included).
-     * The random level is generated without reference to the number of elements
-     * currently present in the instance.
-     */
-    private int generateRandomLevel() {
-        int randomLevelGenerated = 1;
-        while (Math.random() < P && randomLevelGenerated < MAX_LEVEL) {
-            randomLevelGenerated++;
-        }
-        return randomLevelGenerated;
-    }
-
-    @Nullable
-    @Override
-    public synchronized V remove(Object key) {
-
-        @NotNull var nodeFinder = new NodeFinder(key);
-        @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.foundNode;
-        @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
-
-        V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
-        if (nodeEventuallyAlreadyPresent != null /*node found*/) {
-
-            for (int level = 0; level < listLevel; level++) {   // update pointers (actual deletion is here)
-                var rightmostNodeThisLevel = rightmostNodesLowerThanGivenKey[level];
-                if (rightmostNodeThisLevel != nodeEventuallyAlreadyPresent) {
-                    break;
-                }
-                rightmostNodeThisLevel.setNext(level, nodeEventuallyAlreadyPresent.getNext(level));
-            }
-            oldValue = nodeEventuallyAlreadyPresent.getValue();
-            // here the node is out of the list and memory can be free (in Java: garbage collector)
-            size--;
-
-            while (listLevel > 0 && header.getNext(listLevel - 1/*indexes start from 0 in Java, hence '-1'*/) == null) {
-                listLevel--;
-            }
-
-        }
-
-        return oldValue;
-    }
-
-    @Override
-    public synchronized void clear() {
-        initList();
-    }
-
-    @Override
-    public synchronized void putAll(@NotNull Map<? extends K, ? extends V> m) {
-        m.entrySet().stream().sorted(Comparator.comparing(Entry::getKey))  // (maybe) less work when adding to the instance
-                .forEach(entry -> put(entry.getKey(), entry.getValue()));
-    }
-
-    @Override
-    public synchronized String toString() {
+    public String toString() {
         StringBuilder sb = new StringBuilder(
-                "SkipList{" +
-                        "P=" + P +
-                        ", size=" + size +
-                        ", listLevel=" + listLevel +
-                        ", header=" + header +
-                        ", \n\tnodes=[");
+                "SkipList{P=" + skipListMap.getP()
+                        + ", size=" + size()
+                        + ", listLevel=" + skipListMap.getListLevel()
+                        + ", headerForwardsTo: " + skipListMap.getHeader().getForwardPointersKeys()
+                        + ", \n\tnodes=[");
 
-        var nextNode = header.getNext(0);
+        var nextNode = skipListMap.getHeader().getNext(0);
         for (int i = 0; nextNode != null; i++) {
-            sb.append("\n\t\t").append(i + 1).append(":\t").append(nextNode);
+            sb.append("\n\t\t").append(i + 1).append(":\t").append("{value: ").append(nextNode.getKey())
+                    .append(", forwardsTo: ").append(nextNode.getForwardPointersKeys());
             nextNode = nextNode.getNext(0);
         }
         sb.append("\n\t]}");
@@ -348,139 +218,101 @@ public class SkipList<K extends Comparable<K>, V> implements SortedMap<K, V>, Se
         return sb.toString();
     }
 
-    @NotNull
-    @Override
-    public synchronized Set<K> keySet() {
-        Set<K> keySet = new ConcurrentSkipListSet<>();
-        for (var key : this) {
-            keySet.add(key);
-        }
-        return keySet;
-    }
-
-    @NotNull
-    @Override
-    public synchronized Collection<V> values() {
-        List<V> values = new ArrayList<>();
-        var iterator = new SkipListIterator<>(header);
-        while (iterator.hasNext()) {
-            values.add(iterator.nextNode().getValue());
-        }
-        return values;
-    }
-
-    @NotNull
-    @Override
-    public synchronized Set<Entry<K, V>> entrySet() {
-        Set<Entry<K, V>> entrySet = new ConcurrentSkipListSet<>(Entry.comparingByKey());
-        var iterator = new SkipListIterator<>(header);
-        while (iterator.hasNext()) {
-            entrySet.add(iterator.nextNode());
-        }
-        return entrySet;
-    }
-
-    @NotNull
-    @Override
-    public synchronized Iterator<K> iterator() {
-        return new SkipListIterator<>(header);
-    }
-
-    /**
-     * Creates the instance and initializes all fields,
-     * hence this constructor also performs the search
-     * for the given list in the {@link SkipList}.
-     */
-    private class NodeFinder {
+    private class SkipListIteratorList implements ListIterator<T> {
 
         /**
-         * The minimum value for the level, suitable as index.
+         * The iterator of {@link SkipListMap}.
          */
-        static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
+        @NotNull
+        private final Iterator<T> skipListIterator;
         /**
-         * The node found after having performed the search, or null if
-         * the node is not found.
+         * The currently pointed node.
          */
         @Nullable
-        final SkipListNode<K, V> foundNode;
+        private final T current;
         /**
-         * The array of the rightmost {@link SkipListNode}s in the list whose
-         * keys are strictly lower than the given one.
+         * The previous node wrt. the currently pointed one.
          */
-        @SuppressWarnings("unchecked")  // generic array creation
-        @NotNull
-        private final SkipListNode<K, V>[] rightmostNodes =
-                (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
+        @Nullable
+        private T previous;
         /**
-         * The current node, initialized with {@link #header} at the search of the search.
+         * The index to the currently pointed node.
          */
-        @NotNull
-        SkipListNode<K, V> currentNode = header;
+        private int index;
 
         /**
-         * Constructor. Creates the instance and initializes all fields,
-         * hence this constructor also performs the search.
+         * Default constructor.
+         */
+        public SkipListIteratorList() {
+            this.index = -1;// when call next, it is incremented (the first returned element will have index 0)
+            this.current = null;
+            this.previous = null;
+            this.skipListIterator = skipListMap.iterator();
+        }
+
+        /**
+         * Constructor. The first element returned by a call to {@link #next()} will
+         * be the one corresponding to the index given as parameter.
          *
-         * @param key The key to search. It cannot be null.
+         * @param index The index of the element that is desired to be returned at the
+         *              first invocation of {@link #next()}.
          */
-        private NodeFinder(@NotNull Object key) {
-            foundNode = findNode(Objects.requireNonNull(key, "Null keys are not accepted"));
-        }
-
-        /**
-         * @param key The key to search. It cannot be null.
-         * @return The found node for the given key or null if not found.
-         */
-        @Nullable
-        private SkipListNode<K, V> findNode(@NotNull Object key) {
-
-            assert currentNode == header; // search must start from the header of the list
-            //noinspection ConstantConditions   // one more assert is better than one less
-            assert key != null;
-
-            for (int level = getListLevel() - 1;        // start search from the highest level node
-                 level >= LOWEST_NODE_LEVEL_INCLUDED;   // down till the lowest level or break before if node is found
-                 level--) {
-
-                /*
-                 * While iterating over the list elements, saves the next node that
-                 * will be examined, or null if there will not be any next node (if
-                 * end of list is reached).
-                 */
-                @Nullable SkipListNode<K, V> nextNode;
-                while ((nextNode = currentNode.getNext(level)) != null && nextNode.isKeyLowerThan(key)) {
-                    currentNode = nextNode;
-                }
-
-                assert currentNode == header/*compare reference*/
-                        || (currentNode.isKeyLowerThan(key)
-                        && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
-
-                rightmostNodes[level] = currentNode;
+        public SkipListIteratorList(int index) {    // TODO: test
+            this();
+            while (hasNext() && this.index == index) {
+                next();
             }
-
-            var nextNode = currentNode.getNext(0);
-            return nextNode != null && nextNode.isSameKey(key) ? nextNode : null;  // null if node not found
-
         }
 
-        /**
-         * Utility method used to assert that given key is lower or equal to the key of the given node.
-         *
-         * @param key  The key of interest.
-         * @param node The node of interest.
-         * @return true if the given key results lower or equal to the key of the given node.
-         */
-        private boolean isKeyLowerOrEqualToKeyOfNode(Object key, SkipListNode<K, V> node) {
-            // method created only to check an assertion
-            Comparable<K> keyOfNode;
-            //noinspection unchecked
-            return node != header       // if the node is the header (same reference), given key cannot be lower
-                    && key != null      // key of a non-header elements is not null hopefully
-                    && (node == null    // if node is null, it means that the end of list is reached, hence given key is for sure lower
-                    || ((keyOfNode = node.getKey()) != null // null key is considered to be lower than any other key
-                    && keyOfNode.getClass().isAssignableFrom(key.getClass()) // check type compatibility
-                    && keyOfNode.compareTo((K) key) >= 0));  // given key must be lower or equal than the key of node, i.e., key of node must be strictly greater than given key
+        @Override
+        public boolean hasNext() {  // TODO: test
+            return skipListIterator.hasNext();
+        }
+
+        @Override
+        public T next() {  // TODO: test
+            index++;
+            previous = current;
+            return skipListIterator.next();
+        }
+
+        @Override
+        public boolean hasPrevious() {  // TODO: test
+            return previous != null;
+        }
+
+        @Override
+        public T previous() {  // TODO: test
+            if (hasPrevious()) {
+                return previous;
+            } else {
+                throw new NoSuchElementException();
+            }
+        }
+
+        @Override
+        public int nextIndex() {  // TODO: test
+            return index + 1;
+        }
+
+        @Override
+        public int previousIndex() {  // TODO: test
+            return index - 1;
+        }
+
+        @Override
+        public void remove() {  // TODO: test
+            throw new UnsupportedOperationException();
+        }
+
+        @Override
+        public void set(T t) {
+            throw new UnsupportedOperationException();  // set must obey the order imposed by the data-structure
+        }
+
+        @Override
+        public void add(T t) {
+            throw new UnsupportedOperationException();  // add must obey the order imposed by the data-structure
         }
     }
 }
