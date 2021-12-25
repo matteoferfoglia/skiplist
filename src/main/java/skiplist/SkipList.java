@@ -10,7 +10,7 @@ import java.util.*;
 /**
  * Implementation of a SkipList, using the keySet of a {@link SkipListMap}.
  */
-public class SkipList<T extends Comparable<T>> implements List<T>, Serializable {
+public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializable {
 
     /**
      * The {@link SkipListMap} from which this list is created.
@@ -31,6 +31,19 @@ public class SkipList<T extends Comparable<T>> implements List<T>, Serializable 
     public SkipList() {
         skipListMap = new SkipListMap<>();
     }
+
+    /**
+     * Creates a new instance of this class with all elements from
+     * the given input collection.
+     *
+     * @param collection The {@link Collection} from which this instance
+     *                   be  created.
+     */
+    public SkipList(@NotNull final Collection<T> collection) {
+        skipListMap = new SkipListMap<>();
+        addAll(Objects.requireNonNull(collection));
+    }
+
 
     @Override
     public int size() {
@@ -93,13 +106,20 @@ public class SkipList<T extends Comparable<T>> implements List<T>, Serializable 
         }
     }
 
-    @Override
-    public boolean addAll(int index, @NotNull Collection<? extends T> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean removeAll(@NotNull Collection<?> c) {
+    /**
+     * Computes the union of the instances passed as parameters without
+     * modifying them.
+     * This method is very similar to {@link #addAll(Collection)}, but this is
+     * specific for this class, hence this is better for performance,
+     * and does NOT alter any of the input parameters.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the union of the given two.
+     */
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> union(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {   // TODO : test
         throw new UnsupportedOperationException();
     }
 
@@ -111,91 +131,6 @@ public class SkipList<T extends Comparable<T>> implements List<T>, Serializable 
     @Override
     public void clear() {
         skipListMap.clear();
-    }
-
-    @Nullable
-    @Override
-    public T get(int index) {   // TODO: test
-        if ((index < 0 || index >= size())) {
-            throw new IndexOutOfBoundsException();
-        } else {
-            SkipListIterator<T, ?> iterator = (SkipListIterator<T, ?>) skipListMap.iterator();
-            T currentValue;
-            int i = 0;
-            while ((currentValue = iterator.next()) != null && i < index) {
-                i++;
-            }
-
-            assert i - 1 == index;
-            return currentValue;
-        }
-    }
-
-    @Override
-    public T set(int index, T element) {
-        throw new UnsupportedOperationException();  // cannot set at specific position, order is decided by the data-structure
-    }
-
-    @Override
-    public void add(int index, T element) {
-        throw new UnsupportedOperationException();  // cannot set at specific position, order is decided by the data-structure
-    }
-
-    @Nullable
-    @Override
-    public T remove(int index) {
-        @Nullable var keyAtIndex = get(index);
-        if (keyAtIndex != null) {
-            skipListMap.remove(keyAtIndex);
-        }
-        return keyAtIndex;
-    }
-
-    @Override
-    public int indexOf(Object o) {  // TODO: test (must respect its contract)
-        int i = 0;
-        for (var k : skipListMap) {
-            if (k.equals(o)) {
-                break;
-            } else {
-                i++;
-            }
-        }
-        return i >= size() ? -1 : i;
-    }
-
-    @Override
-    public int lastIndexOf(Object o) {
-        return indexOf(o);  // nu duplicates are allowed
-    }
-
-    @NotNull
-    @Override
-    public ListIterator<T> listIterator() {
-        return new SkipListIteratorList();
-    }
-
-    @NotNull
-    @Override
-    public ListIterator<T> listIterator(int index) {
-        return new SkipListIteratorList(index);
-    }
-
-    @NotNull
-    @Override
-    public List<T> subList(int fromIndex, int toIndex) {    // TODO: test
-        if (fromIndex < 0 || fromIndex > toIndex || toIndex >= size()) {
-            throw new IndexOutOfBoundsException();
-        }
-        var fromIndexKey = get(fromIndex);
-        var toIndexKey = get(toIndex);
-        if (fromIndexKey != null && toIndexKey != null) {
-            return new SkipList<>() {{
-                addAll(skipListMap.subMap(get(fromIndex), get(toIndex)).keySet());
-            }};
-        } else {
-            throw new IllegalStateException("This should never happen (IndexOutofBound eventually already thrown).");
-        }
     }
 
     @Override
@@ -219,24 +154,6 @@ public class SkipList<T extends Comparable<T>> implements List<T>, Serializable 
     }
 
     /**
-     * Computes the union of the instances passed as parameters without
-     * modifying them.
-     * This method is very similar to {@link #addAll(Collection)}, but this is
-     * specific for this class, hence this is better for performance,
-     * and does NOT alter any of the input parameters.
-     *
-     * @param a One instance.
-     * @param b The other instance.
-     * @return a new instance with the union of the given two.
-     */
-    @NotNull
-    public static <T extends Comparable<T>> SkipList<T> union(
-            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
-        // TODO: implement before in SkipListMap
-        throw new UnsupportedOperationException();
-    }
-
-    /**
      * Computes the intersection of the instances passed as parameters without
      * modifying them.
      *
@@ -246,9 +163,104 @@ public class SkipList<T extends Comparable<T>> implements List<T>, Serializable 
      */
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> intersection(
-            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
-        // TODO: implement before in SkipListMap
-        throw new UnsupportedOperationException();
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {   // TODO: test
+
+        SkipList<T> intersection = new SkipList<>();
+        var currentA = a.getFirstNodeOrNull();
+        var currentB = b.getFirstNodeOrNull();
+
+        // return the next node for intersection
+        TriFunction<@NotNull SkipList<T>, @NotNull SkipListNode<T, ?>, @NotNull T, @Nullable SkipListNode<T, ?>>
+                nextNodeGetterOrNullIfEndOfListReached = (skipList, currentNode, maxKeyIncluded) -> {
+            assert currentNode.getKey() != null;
+            for (int l = currentNode.getLevel() - 1; l >= 0; l--) {
+                var nextAtLevel = currentNode.getNext(l);
+                if (nextAtLevel != null) {
+                    assert nextAtLevel.getKey() != null;
+                    var innerComparison = nextAtLevel.getKey().compareTo(maxKeyIncluded);
+                    if (innerComparison <= 0) {
+                        return nextAtLevel;
+                    }
+                }
+            }
+            return null;
+        };
+        while (currentA != null && currentB != null) {
+            assert currentA.getKey() != null;
+            assert currentB.getKey() != null;
+            var comparison = currentA.getKey().compareTo(currentB.getKey());
+            if (comparison == 0) {
+                intersection.add(currentA.getKey());    // TODO: replace with direct insert (add() at this moment will re-do the search inside the list from the beginning, but we do not need it because we already have the cursor to the position where to add the new node).
+                currentA = currentA.getNext(SkipListMap.LOWEST_NODE_LEVEL_INCLUDED);
+                currentB = currentB.getNext(SkipListMap.LOWEST_NODE_LEVEL_INCLUDED);
+            } else if (comparison < 0) {
+                currentA = nextNodeGetterOrNullIfEndOfListReached.apply(a, currentA, currentB.getKey());
+            } else {
+                currentB = nextNodeGetterOrNullIfEndOfListReached.apply(b, currentB, currentA.getKey());
+            }
+        }
+
+        return intersection;
+    }
+
+    @Override
+    public boolean removeAll(@NotNull Collection<?> c) {
+        boolean setChanged = false;
+        for (var e : c) {
+            setChanged = skipListMap.remove(e) != null || setChanged;
+        }
+        return setChanged;
+    }
+
+    @Nullable
+    @Override
+    public Comparator<? super T> comparator() {
+        return null;
+    }
+
+    @NotNull
+    @Override
+    public SortedSet<T> subSet(@NotNull T fromElement, @NotNull T toElement) {
+        return new SkipList<>(skipListMap.subMap(
+                Objects.requireNonNull(fromElement), Objects.requireNonNull(toElement)).keySet());
+    }
+
+    @NotNull
+    @Override
+    public SortedSet<T> headSet(T toElement) {
+        return new SkipList<>(skipListMap.headMap(Objects.requireNonNull(toElement)).keySet());
+    }
+
+    @NotNull
+    @Override
+    public SortedSet<T> tailSet(T fromElement) {
+        return new SkipList<>(skipListMap.tailMap(Objects.requireNonNull(fromElement)).keySet());
+    }
+
+    @Override
+    public T first() {
+        return skipListMap.firstKey();
+    }
+
+    @Override
+    public T last() {
+        return skipListMap.lastKey();
+    }
+
+    /**
+     * @return the level of this list.
+     */
+    private int getListLevel() {
+        return skipListMap.getListLevel();
+    }
+
+    /**
+     * @return the first node of this instance (the one which follows the
+     * header) or null if this instance is empty.
+     */
+    @Nullable
+    private synchronized SkipListNode<T, ?> getFirstNodeOrNull() {
+        return skipListMap.getFirstNodeOrNull();
     }
 
     /**
@@ -263,101 +275,4 @@ public class SkipList<T extends Comparable<T>> implements List<T>, Serializable 
         throw new UnsupportedOperationException();
     }
 
-    private class SkipListIteratorList implements ListIterator<T> {
-
-        /**
-         * The iterator of {@link SkipListMap}.
-         */
-        @NotNull
-        private final Iterator<T> skipListIterator;
-        /**
-         * The currently pointed node.
-         */
-        @Nullable
-        private final T current;
-        /**
-         * The previous node wrt. the currently pointed one.
-         */
-        @Nullable
-        private T previous;
-        /**
-         * The index to the currently pointed node.
-         */
-        private int index;
-
-        /**
-         * Default constructor.
-         */
-        public SkipListIteratorList() {
-            this.index = -1;// when call next, it is incremented (the first returned element will have index 0)
-            this.current = null;
-            this.previous = null;
-            this.skipListIterator = skipListMap.iterator();
-        }
-
-        /**
-         * Constructor. The first element returned by a call to {@link #next()} will
-         * be the one corresponding to the index given as parameter.
-         *
-         * @param index The index of the element that is desired to be returned at the
-         *              first invocation of {@link #next()}.
-         */
-        public SkipListIteratorList(int index) {    // TODO: test
-            this();
-            while (hasNext() && this.index == index) {
-                next();
-            }
-        }
-
-        @Override
-        public boolean hasNext() {  // TODO: test
-            return skipListIterator.hasNext();
-        }
-
-        @Override
-        public T next() {  // TODO: test
-            index++;
-            previous = current;
-            return skipListIterator.next();
-        }
-
-        @Override
-        public boolean hasPrevious() {  // TODO: test
-            return previous != null;
-        }
-
-        @Override
-        public T previous() {  // TODO: test
-            if (hasPrevious()) {
-                return previous;
-            } else {
-                throw new NoSuchElementException();
-            }
-        }
-
-        @Override
-        public int nextIndex() {  // TODO: test
-            return index + 1;
-        }
-
-        @Override
-        public int previousIndex() {  // TODO: test
-            return index - 1;
-        }
-
-        @Override
-        public void remove() {  // TODO: test
-            throw new UnsupportedOperationException();
-        }
-
-        @Override
-        public void set(T t) {
-            throw new UnsupportedOperationException();  // set must obey the order imposed by the data-structure
-        }
-
-        @Override
-        public void add(T t) {
-            throw new UnsupportedOperationException();  // add must obey the order imposed by the data-structure
-        }
-    }
 }

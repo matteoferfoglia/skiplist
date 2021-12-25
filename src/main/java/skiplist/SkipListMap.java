@@ -24,6 +24,11 @@ import java.util.function.Predicate;
 public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Serializable, Iterable<K> {
 
     /**
+     * The minimum value for the level, suitable as index.
+     */
+    static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
+
+    /**
      * The maximum value (constant, this is a parameter) to which levels
      * of nodes are capped.
      */
@@ -239,14 +244,14 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      */
     @Nullable
     private synchronized SkipListNode<K, V> findNode(@NotNull Object key) {
-        return new NodeFinder(key).foundNode;
+        return new NodeFinder<>(key, header, listLevel).foundNode;
     }
 
     @Nullable
     @Override
     public synchronized V put(@NotNull K key, V value) {
 
-        @NotNull var nodeFinder = new NodeFinder(Objects.requireNonNull(key));
+        @NotNull var nodeFinder = new NodeFinder<>(key, header, listLevel);
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.foundNode;
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
@@ -280,7 +285,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * was no mapping for key.
      */
     public synchronized V put(@NotNull SkipListNode<K, V> node) {
-        return put(Objects.requireNonNull(node).getKey(), node.getValue());
+        return put(Objects.requireNonNull(node.getKey()), node.getValue());
     }
 
     /**
@@ -300,7 +305,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @Override
     public synchronized V remove(@NotNull Object key) {
 
-        @NotNull var nodeFinder = new NodeFinder(Objects.requireNonNull(key));
+        @NotNull var nodeFinder = new NodeFinder<>(key, header, listLevel);
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.foundNode;
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
@@ -355,10 +360,10 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                         ", header=" + header +
                         ", \n\tnodes=[");
 
-        var nextNode = header.getNext(0);
+        var nextNode = header.getNext(LOWEST_NODE_LEVEL_INCLUDED);
         for (int i = 0; nextNode != null; i++) {
             sb.append("\n\t\t").append(i + 1).append(":\t").append(nextNode);
-            nextNode = nextNode.getNext(0);
+            nextNode = nextNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
         }
         sb.append("\n\t]}");
 
@@ -404,35 +409,49 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
-     * Creates the instance and initializes all fields,
-     * hence this constructor also performs the search
-     * for the given list in the {@link SkipListMap}.
+     * @return the first node of this instance (the one which follows the
+     * header) or null if this instance is empty.
      */
-    private class NodeFinder {
+    @Nullable
+    synchronized SkipListNode<K, V> getFirstNodeOrNull() {
+        return isEmpty() ? null : header.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+    }
 
-        /**
-         * The minimum value for the level, suitable as index.
-         */
-        static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
+    /**
+     * Class to find a node by key exploiting the known order and the forward pointers.
+     */
+    private static class NodeFinder<K extends Comparable<K>, V> {
+
         /**
          * The node found after having performed the search, or null if
          * the node is not found.
          */
         @Nullable
         final SkipListNode<K, V> foundNode;
+
         /**
          * The array of the rightmost {@link SkipListNode}s in the list whose
          * keys are strictly lower than the given one.
          */
-        @SuppressWarnings("unchecked")  // generic array creation
         @NotNull
-        private final SkipListNode<K, V>[] rightmostNodes =
-                (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
+        private final SkipListNode<K, V>[] rightmostNodes;
+
         /**
          * The current node, initialized with {@link #header} at the search of the search.
          */
         @NotNull
-        SkipListNode<K, V> currentNode = header;
+        SkipListNode<K, V> currentNode;
+
+        /**
+         * The header of the {@link SkipListMap} to which this instance refers to.
+         */
+        @NotNull
+        SkipListNode<K, V> header;
+
+        /**
+         * The level of the {@link SkipListMap} to which this instance refers to.
+         */
+        int listLevel;
 
         /**
          * Constructor. Creates the instance and initializes all fields,
@@ -440,8 +459,16 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
          *
          * @param key The key to search. It cannot be null.
          */
-        private NodeFinder(@NotNull Object key) {
-            foundNode = findNode(Objects.requireNonNull(key, "Null keys are not accepted"));
+        private NodeFinder(@NotNull Object key, @NotNull SkipListNode<K, V> header, int listLevel) {
+            this.header = Objects.requireNonNull(header);
+            this.currentNode = header;
+            this.listLevel = listLevel;
+
+            // generic array creation
+            //noinspection unchecked
+            this.rightmostNodes = (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
+
+            this.foundNode = findNode(Objects.requireNonNull(key, "Null keys are not accepted"));
         }
 
         /**
@@ -455,7 +482,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             //noinspection ConstantConditions   // one more assert is better than one less
             assert key != null;
 
-            for (int level = getListLevel() - 1;        // start search from the highest level node
+            for (int level = listLevel - 1;        // start search from the highest level node
                  level >= LOWEST_NODE_LEVEL_INCLUDED;   // down till the lowest level or break before if node is found
                  level--) {
 
@@ -468,7 +495,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                 while ((nextNode = currentNode.getNext(level)) != null && nextNode.isKeyLowerThan(key)) {
                     currentNode = nextNode;
                 }
-
                 assert currentNode == header/*compare reference*/
                         || (currentNode.isKeyLowerThan(key)
                         && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
@@ -476,7 +502,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                 rightmostNodes[level] = currentNode;
             }
 
-            var nextNode = currentNode.getNext(0);
+            var nextNode = currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
             return nextNode != null && nextNode.isSameKey(key) ? nextNode : null;  // null if node not found
 
         }
@@ -499,50 +525,5 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                     && keyOfNode.getClass().isAssignableFrom(key.getClass()) // check type compatibility
                     && keyOfNode.compareTo((K) key) >= 0));  // given key must be lower or equal than the key of node, i.e., key of node must be strictly greater than given key
         }
-    }
-
-    /**
-     * Computes the union of the instances passed as parameters without
-     * modifying them.
-     * This method is very similar to {@link #putAll(Map)}, but this is
-     * specific for this class, hence this is better for performance,
-     * and does NOT alter any of the input parameters.
-     *
-     * @param a One instance.
-     * @param b The other instance.
-     * @return a new instance with the union of the given two.
-     */
-    @NotNull
-    public static <K extends Comparable<K>, V> SkipListMap<K, V> union(
-            @NotNull final SkipListMap<K, V> a, @NotNull final SkipListMap<K, V> b) {
-        // TODO:
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Computes the intersection of the instances passed as parameters without
-     * modifying them.
-     *
-     * @param a One instance.
-     * @param b The other instance.
-     * @return a new instance with the intersection of the given two.
-     */
-    @NotNull
-    public static <K extends Comparable<K>, V> SkipListMap<K, V> intersection(
-            @NotNull final SkipListMap<K, V> a, @NotNull final SkipListMap<K, V> b) {
-        // TODO:
-        throw new UnsupportedOperationException();
-    }
-
-    /**
-     * Merges this instance with the one given as parameter and returns this instance
-     * after the invocation of this method.
-     *
-     * @param o The other instance of this class to be merged with this one.
-     * @return this instance after merging.
-     */
-    public SkipListMap<K, V> merge(@NotNull SkipListMap<K, V> o) {
-        // TODO:
-        throw new UnsupportedOperationException();
     }
 }

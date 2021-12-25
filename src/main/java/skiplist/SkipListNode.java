@@ -135,7 +135,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
         } else {
             throw new IndexOutOfBoundsException(
                     "Allowed level values for this node must be between " + (MINIMUM_VALID_LEVEL_INCLUDED - 1)
-                            + " (included) and " + getLevel() + " (excluded).");
+                            + " (included) and " + getLevel() + " (excluded), but was " + level);
         }
     }
 

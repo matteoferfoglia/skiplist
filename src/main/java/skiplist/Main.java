@@ -23,14 +23,21 @@ public class Main {
             System.out.println(a);
         }
 
-        SkipList<Integer> l = new SkipList<>();
-        l.add(1);
-        l.add(3);
-        l.add(5);
-        l.add(2);
-        System.out.println(l);
-        for (var a : l) {
+        SkipList<Integer> l1 = new SkipList<>();
+        l1.add(1);
+        l1.add(3);
+        l1.add(5);
+        l1.add(2);
+        System.out.println(l1);
+        for (var a : l1) {
             System.out.println(a);
         }
+
+        SkipList<Integer> l2 = new SkipList<>();
+        l2.add(3);
+        l2.add(4);
+        l2.add(5);
+        System.out.println(l2);
+        System.out.println(SkipList.intersection(l1, l2));
     }
 }
