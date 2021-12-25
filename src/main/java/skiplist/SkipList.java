@@ -218,6 +218,51 @@ public class SkipList<T extends Comparable<T>> implements List<T>, Serializable 
         return sb.toString();
     }
 
+    /**
+     * Computes the union of the instances passed as parameters without
+     * modifying them.
+     * This method is very similar to {@link #addAll(Collection)}, but this is
+     * specific for this class, hence this is better for performance,
+     * and does NOT alter any of the input parameters.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the union of the given two.
+     */
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> union(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
+        // TODO: implement before in SkipListMap
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Computes the intersection of the instances passed as parameters without
+     * modifying them.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the intersection of the given two.
+     */
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> intersection(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
+        // TODO: implement before in SkipListMap
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Merges this instance with the one given as parameter and returns this instance
+     * after the invocation of this method.
+     *
+     * @param o The other instance of this class to be merged with this one.
+     * @return this instance after merging.
+     */
+    public SkipList<T> merge(@NotNull SkipList<T> o) {
+        // TODO: implement before in SkipListMap
+        throw new UnsupportedOperationException();
+    }
+
     private class SkipListIteratorList implements ListIterator<T> {
 
         /**

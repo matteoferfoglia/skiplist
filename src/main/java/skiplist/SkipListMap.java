@@ -500,4 +500,49 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                     && keyOfNode.compareTo((K) key) >= 0));  // given key must be lower or equal than the key of node, i.e., key of node must be strictly greater than given key
         }
     }
+
+    /**
+     * Computes the union of the instances passed as parameters without
+     * modifying them.
+     * This method is very similar to {@link #putAll(Map)}, but this is
+     * specific for this class, hence this is better for performance,
+     * and does NOT alter any of the input parameters.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the union of the given two.
+     */
+    @NotNull
+    public static <K extends Comparable<K>, V> SkipListMap<K, V> union(
+            @NotNull final SkipListMap<K, V> a, @NotNull final SkipListMap<K, V> b) {
+        // TODO:
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Computes the intersection of the instances passed as parameters without
+     * modifying them.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the intersection of the given two.
+     */
+    @NotNull
+    public static <K extends Comparable<K>, V> SkipListMap<K, V> intersection(
+            @NotNull final SkipListMap<K, V> a, @NotNull final SkipListMap<K, V> b) {
+        // TODO:
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Merges this instance with the one given as parameter and returns this instance
+     * after the invocation of this method.
+     *
+     * @param o The other instance of this class to be merged with this one.
+     * @return this instance after merging.
+     */
+    public SkipListMap<K, V> merge(@NotNull SkipListMap<K, V> o) {
+        // TODO:
+        throw new UnsupportedOperationException();
+    }
 }
