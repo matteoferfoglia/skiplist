@@ -18,17 +18,21 @@ public class Main {
         m.put(3, null);
         m.put(5, null);
         m.put(2, null);
-        System.out.println(m);
+        System.out.println("m:\t" + m);
         for (var a : m) {
             System.out.println(a);
         }
+
+        SkipListMap<Integer, Integer> m2 = new SkipListMap<>();
+        m2.putAll(m);
+        System.out.println("m2:\t" + m2);
 
         SkipList<Integer> l1 = new SkipList<>();
         l1.add(1);
         l1.add(3);
         l1.add(5);
         l1.add(2);
-        System.out.println(l1);
+        System.out.println("l1:\t" + l1);
         for (var a : l1) {
             System.out.println(a);
         }
@@ -37,7 +41,8 @@ public class Main {
         l2.add(3);
         l2.add(4);
         l2.add(5);
-        System.out.println(l2);
-        System.out.println(SkipList.intersection(l1, l2));
+        System.out.println("l2:\t" + l2);
+
+        System.out.println("intersection:\t" + SkipList.intersection(l1, l2));
     }
 }

@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of a SkipList, as described in "Skip Lists: A Probabilistic Alternative
@@ -24,32 +25,36 @@ import java.util.function.Predicate;
 public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Serializable, Iterable<K> {
 
     /**
-     * The minimum value for the level, suitable as index.
-     */
-    static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
-
-    /**
      * The maximum value (constant, this is a parameter) to which levels
      * of nodes are capped.
      */
     public static final int MAX_LEVEL = 16;
 
     /**
+     * The minimum value for the level, suitable as index.
+     */
+    static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
+
+    /**
      * The default fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
     private static final double DEFAULT_P = 1.0 / 2;
+
     /**
      * The minimum value (excluded) for {@link #P}.
      */
     private static final double MIN_P_EXCLUDED = 0;
+
     /**
      * The maximum value (included) for {@link #P}.
      */
     private static final double MAX_P_INCLUDED = 1;
+
     /**
      * The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
     private final double P;
+
     /**
      * The number of elements in this list.
      */
@@ -252,15 +257,34 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      */
     @Nullable
     private synchronized SkipListNode<K, V> findNode(@NotNull Object key) {
-        return new NodeFinder<>(key, header, listLevel).foundNode;
+        var nodeFinder = new NodeFinder<>(header);
+        return nodeFinder.findNextNode(key);
     }
 
     @Nullable
     @Override
     public synchronized V put(@NotNull K key, V value) {    // TODO: test update of last node
+        return put(key, value, new NodeFinder<>(header));
+    }
 
-        @NotNull var nodeFinder = new NodeFinder<>(key, header, listLevel);
-        @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.foundNode;
+    /**
+     * Put the element with given key and value to this instance.
+     * If the key already exists, the corresponding element in this instance
+     * will be replaced.
+     * This method takes a {@link NodeFinder} instance parameter: this allows to
+     * exploit the order of the collection: e.g., if you have to add a list of sorted
+     * {@link SkipListNode}s to this instance, it would have no sense to create
+     * each time a new instance of {@link NodeFinder} and search for the correct
+     * position where to add the next {@link SkipListNode} of the input list from
+     * the beginning of this instance, because, exploiting the sorting order, you
+     * know that for sure the insertion position will not be previous than the position
+     * in this instance of the {@link SkipListNode} from the input list that you have
+     * already added. For this purpose, the method {@link NodeFinder#findNextNode(Object)}
+     * is used.
+     */
+    @Nullable
+    private V put(@NotNull K key, V value, @NotNull NodeFinder<K, V> nodeFinder) {
+        @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.findNextNode(key);
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
@@ -315,8 +339,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @Override
     public synchronized V remove(@NotNull Object key) { // TODO: test correct update of last node
 
-        @NotNull var nodeFinder = new NodeFinder<>(key, header, listLevel);
-        @Nullable var nodeToRemove = nodeFinder.foundNode;
+        @NotNull var nodeFinder = new NodeFinder<>(header);
+        @Nullable var nodeToRemove = nodeFinder.findNextNode(key);
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
@@ -373,9 +397,17 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     @Override
-    public synchronized void putAll(@NotNull Map<? extends K, ? extends V> m) {
-        m.entrySet().stream().sorted(Comparator.comparing(Entry::getKey))  // (maybe) less work when adding to the instance
-                .forEach(entry -> put(entry.getKey(), entry.getValue()));
+    public synchronized void putAll(@NotNull Map<? extends K, ? extends V> m) { // TODO: test
+
+        if (!m.isEmpty()) {
+            var sortedEntrySet =
+                    m.entrySet().stream().sorted(Entry.comparingByKey()).collect(Collectors.toList());
+            var nodeFinder = new NodeFinder<>(header);
+            for (var entry : sortedEntrySet) {
+                put(entry.getKey(), entry.getValue(), nodeFinder);
+            }
+        }
+
     }
 
     /**
@@ -458,19 +490,11 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     private static class NodeFinder<K extends Comparable<K>, V> {
 
         /**
-         * The node found after having performed the search, or null if
-         * the node is not found.
-         */
-        @Nullable
-        final SkipListNode<K, V> foundNode;
-
-        /**
          * The array of the rightmost {@link SkipListNode}s in the list whose
          * keys are strictly lower than the given one.
          */
         @NotNull
         private final SkipListNode<K, V>[] rightmostNodes;
-
         /**
          * The current node, initialized with {@link #header} at the search of the search.
          */
@@ -484,40 +508,30 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         SkipListNode<K, V> header;
 
         /**
-         * The level of the {@link SkipListMap} to which this instance refers to.
+         * Constructor.
          */
-        int listLevel;
-
-        /**
-         * Constructor. Creates the instance and initializes all fields,
-         * hence this constructor also performs the search.
-         *
-         * @param key The key to search. It cannot be null.
-         */
-        private NodeFinder(@NotNull Object key, @NotNull SkipListNode<K, V> header, int listLevel) {
+        private NodeFinder(@NotNull SkipListNode<K, V> header) {
             this.header = Objects.requireNonNull(header);
             this.currentNode = header;
-            this.listLevel = listLevel;
 
             // generic array creation
             //noinspection unchecked
-            this.rightmostNodes = (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
-
-            this.foundNode = findNode(Objects.requireNonNull(key, "Null keys are not accepted"));
+            this.rightmostNodes =
+                    (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
         }
 
         /**
+         * Finds the node with the given key in the instance, starting searching from
+         * the node following the {@link #currentNode}.
+         *
          * @param key The key to search. It cannot be null.
          * @return The found node for the given key or null if not found.
          */
-        @Nullable
-        private SkipListNode<K, V> findNode(@NotNull Object key) {
-
-            assert currentNode == header; // search must start from the header of the list
+        public SkipListNode<K, V> findNextNode(@NotNull Object key) {
             //noinspection ConstantConditions   // one more assert is better than one less
             assert key != null;
 
-            for (int level = listLevel - 1;        // start search from the highest level node
+            for (int level = currentNode.getLevel() - 1;        // start search from the highest level node
                  level >= LOWEST_NODE_LEVEL_INCLUDED;   // down till the lowest level or break before if node is found
                  level--) {
 
@@ -538,8 +552,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             }
 
             var nextNode = currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
-            return nextNode != null && nextNode.isSameKey(key) ? nextNode : null;  // null if node not found
-
+            currentNode = nextNode != null && nextNode.isSameKey(key) ? nextNode : currentNode;  // null if node not found
+            return nextNode;
         }
 
         /**
