@@ -313,7 +313,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @Nullable
     private V put(@NotNull K key, V value, @NotNull NodeFinder<K, V> nodeFinder) {
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.findNextNode(key);
-        assert nodeFinder.isKeyLowerOrEqualToKeyOfNode(key, nodeEventuallyAlreadyPresent);
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
@@ -462,6 +461,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     /**
      * Getter for the {@link #header}.
      */
+    @NotNull
     SkipListNode<K, V> getHeader() {
         return header;
     }
@@ -534,98 +534,47 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
-     * Class to find a node by key exploiting the known order and the forward pointers.
+     * Two instances are considered equals if they have the same parameters and
+     * the same elements in the same order.
      */
-    private static class NodeFinder<K extends Comparable<K>, V> {
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
 
-        /**
-         * The array of the rightmost {@link SkipListNode}s in the list whose
-         * keys are strictly lower than the given one.
-         */
-        @NotNull
-        private final SkipListNode<K, V>[] rightmostNodes;
-        /**
-         * The current node, initialized with {@link #header} at the search of the search.
-         */
-        @NotNull
-        SkipListNode<K, V> currentNode;
+        SkipListMap<?, ?> that = (SkipListMap<?, ?>) o;
 
-        /**
-         * The header of the {@link SkipListMap} to which this instance refers to.
-         */
-        @NotNull
-        SkipListNode<K, V> header;
+        if (MAX_LEVEL != that.MAX_LEVEL) return false;
+        if (Double.compare(that.P, P) != 0) return false;
+        if (size != that.size) return false;
 
-        /**
-         * Constructor.
-         */
-        private NodeFinder(@NotNull SkipListNode<K, V> header) {
-            this.header = Objects.requireNonNull(header);
-            this.currentNode = header;
-
-            // generic array creation
-            //noinspection unchecked
-            this.rightmostNodes =
-                    (SkipListNode<K, V>[]) Collections.nCopies(header.getLevel(), header).toArray(new SkipListNode[0]);
-        }
-
-        /**
-         * Finds the node with the given key in the instance, starting searching from
-         * the node following the {@link #currentNode}.
-         *
-         * @param key The key to search. It cannot be null.
-         * @return The found node for the given key or null if not found.
-         */
-        public SkipListNode<K, V> findNextNode(@NotNull Object key) {
-            //noinspection ConstantConditions   // one more assert is better than one less
-            assert key != null;
-
-            for (int level = currentNode.getLevel() - 1;        // start search from the highest level node
-                 level >= LOWEST_NODE_LEVEL_INCLUDED;   // down till the lowest level or break before if node is found
-                 level--) {
-
-                /*
-                 * While iterating over the list elements, saves the next node that
-                 * will be examined, or null if there will not be any next node (if
-                 * end of list is reached).
-                 */
-                @Nullable SkipListNode<K, V> nextNode;
-                while ((nextNode = currentNode.getNext(level)) != null && nextNode.isKeyLowerThan(key)) {
-                    currentNode = nextNode;
-                }
-                assert currentNode == header/*compare reference*/
-                        || (currentNode.isKeyLowerThan(key)
-                        && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
-
-                rightmostNodes[level] = currentNode;
-            }
-
-            var nextNode = currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
-            if (nextNode != null && nextNode.isSameKey(key)) {
-                currentNode = nextNode;
-                return currentNode;
+        boolean equal = true;
+        var nodeFinderThis = new NodeFinder<>(header);
+        var nodeFinderThat = new NodeFinder<>(that.header);
+        for (var key : this) {
+            var nextNode = nodeFinderThis.findNextNode(key);
+            if (nextNode == null) {
+                break;
             } else {
-                return null;    // null if node not found
+                equal = equal && nextNode.equals(nodeFinderThat.findNextNode(key));
             }
         }
 
-        /**
-         * Utility method used to assert that given key is lower or equal to the key of the given node.
-         *
-         * @param key  The key of interest.
-         * @param node The node of interest.
-         * @return true if the given key results lower or equal to the key of the given node.
-         */
-        private boolean isKeyLowerOrEqualToKeyOfNode(Object key, SkipListNode<K, V> node) {
-            // method created only to check an assertion
-            Comparable<K> keyOfNode;
-            //noinspection unchecked
-            return node != header       // if the node is the header (same reference), given key cannot be lower
-                    && key != null      // key of a non-header elements is not null hopefully
-                    && (node == null    // if node is null, it means that the end of list is reached, hence given key is for sure lower
-                    || ((keyOfNode = node.getKey()) != null // null key is considered to be lower than any other key
-                    && keyOfNode.getClass().isAssignableFrom(key.getClass()) // check type compatibility
-                    && keyOfNode.compareTo((K) key) >= 0));  // given key must be lower or equal than the key of node, i.e., key of node must be strictly greater than given key
-        }
+        return equal;
     }
+
+    @Override
+    public int hashCode() {
+        int result;
+        long temp;
+        result = MAX_LEVEL;
+        temp = Double.doubleToLongBits(P);
+        result = 31 * result + (int) (temp ^ (temp >>> 32));
+        result = 31 * result + size;
+        result = 31 * result + listLevel;
+        result = 31 * result + header.hashCode();
+        result = 31 * result + Arrays.hashCode(rightmostNodes);
+        return result;
+    }
+
 }

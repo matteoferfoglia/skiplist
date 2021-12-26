@@ -7,6 +7,8 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.*;
 
+import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
+
 /**
  * Implementation of a SkipList, using the keySet of a {@link SkipListMap}.
  */
@@ -81,7 +83,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> union(
-            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {   // TODO : test
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
         SkipList<T> union = new SkipList<>();
         union.addAll(a);
         union.addAll(b);
@@ -98,28 +100,18 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> intersection(
-            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {   // TODO: test
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
 
         SkipList<T> intersection = new SkipList<>();
+        if (a.isEmpty() || b.isEmpty()) {
+            return intersection;    // empty intersection
+        }
+
+        var nodeFinderA = new NodeFinder<>(a.getHeader());
+        var nodeFinderB = new NodeFinder<>(b.getHeader());
+
         var currentA = a.getFirstNodeOrNull();
         var currentB = b.getFirstNodeOrNull();
-
-        // return the next node for intersection
-        TriFunction<@NotNull SkipList<T>, @NotNull SkipListNode<T, ?>, @NotNull T, @Nullable SkipListNode<T, ?>>
-                nextNodeGetterOrNullIfEndOfListReached = (skipList, currentNode, maxKeyIncluded) -> {
-            assert currentNode.getKey() != null;
-            for (int l = currentNode.getLevel() - 1; l >= 0; l--) {
-                var nextAtLevel = currentNode.getNext(l);
-                if (nextAtLevel != null) {
-                    assert nextAtLevel.getKey() != null;
-                    var innerComparison = nextAtLevel.getKey().compareTo(maxKeyIncluded);
-                    if (innerComparison <= 0) {
-                        return nextAtLevel;
-                    }
-                }
-            }
-            return null;
-        };
 
         while (currentA != null && currentB != null) {
             assert currentA.getKey() != null;
@@ -128,30 +120,37 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
             if (comparison == 0) {
                 //noinspection unchecked    // only keys matter for SkipList
                 intersection.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
-                currentA = currentA.getNext(SkipListMap.LOWEST_NODE_LEVEL_INCLUDED);
-                currentB = currentB.getNext(SkipListMap.LOWEST_NODE_LEVEL_INCLUDED);
+                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+                currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
             } else if (comparison < 0) {
-                currentA = nextNodeGetterOrNullIfEndOfListReached.apply(a, currentA, currentB.getKey());
+                var nextNode = nodeFinderA.findNextNode(currentB.getKey());
+                currentA = nextNode == null ? currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
             } else {
-                currentB = nextNodeGetterOrNullIfEndOfListReached.apply(b, currentB, currentA.getKey());
+                var nextNode = nodeFinderB.findNextNode(currentA.getKey());
+                currentB = nextNode == null ? currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
             }
         }
 
         return intersection;
     }
 
+    @NotNull
+    private SkipListNode<T, ?> getHeader() {
+        return skipListMap.getHeader();
+    }
+
     @Override
-    public int size() {
+    public synchronized int size() {
         return skipListMap.size();
     }
 
     @Override
-    public boolean isEmpty() {
+    public synchronized boolean isEmpty() {
         return skipListMap.isEmpty();
     }
 
     @Override
-    public boolean contains(Object o) {
+    public synchronized boolean contains(Object o) {
         return skipListMap.containsKey(o);
     }
 
@@ -161,52 +160,68 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         return skipListMap.iterator();
     }
 
+    @SuppressWarnings("NullableProblems")
     @NotNull
     @Override
-    public Object[] toArray() { // TODO: test
-        return skipListMap.entrySet().toArray();
+    public synchronized Object[] toArray() {
+        return skipListMap.keySet().toArray();
     }
 
+    @SuppressWarnings({"unchecked", "NullableProblems"})
     @NotNull
     @Override
-    public <T1> T1[] toArray(@NotNull T1[] a) { // TODO: test
-        return skipListMap.entrySet().toArray((T1[]) Array.newInstance(a.getClass(), 0));
+    public synchronized <T1> T1[] toArray(@NotNull T1[] a) {
+        var size = size();
+        T1[] dest = (T1[]) Array.newInstance(a.getClass().getComponentType(), size);
+        var it = iterator();
+
+        int i;
+        for (i = 0; it.hasNext(); i++) {
+            dest[i] = (T1) it.next();
+        }
+        assert i == size;
+
+        if (dest.length > 0 && a.length > 0) {
+            System.arraycopy(dest, 0, a, 0, a.length);
+        }
+        return dest;
     }
 
     @Override
-    public boolean add(@NotNull T t) {
+    public synchronized boolean add(@NotNull T t) {
         skipListMap.put(Objects.requireNonNull(t), null);
         return true;
     }
 
     @Override
-    public boolean remove(@NotNull Object o) {
+    public synchronized boolean remove(@NotNull Object o) {
         var old = skipListMap.remove(o);
         return old != null;
     }
 
     @Override
-    public boolean containsAll(@NotNull Collection<?> c) {  // TODO: test
-        return c.stream().unordered().filter(e -> skipListMap.containsKey(c)).count() == c.size();
+    public synchronized boolean containsAll(@NotNull Collection<?> c) {
+        //noinspection SuspiciousMethodCalls
+        return c.stream().unordered().filter(skipListMap::containsKey).count() == c.size();
     }
 
     @Override
-    public boolean addAll(@NotNull Collection<? extends T> c) { // TODO: test
+    public synchronized boolean addAll(@NotNull Collection<? extends T> c) {
         return skipListMap.putAllKeys(c);
     }
 
     @Override
-    public boolean retainAll(@NotNull Collection<?> c) {
+    public synchronized boolean retainAll(@NotNull Collection<?> c) {
         throw new UnsupportedOperationException();
     }
 
     @Override
-    public void clear() {
+    public synchronized void clear() {
         skipListMap.clear();
     }
 
     @Override
-    public String toString() {
+    public synchronized String toString() {
         StringBuilder sb = new StringBuilder(
                 "SkipList{P=" + skipListMap.getP()
                         + ", size=" + size()
@@ -226,7 +241,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     @Override
-    public boolean removeAll(@NotNull Collection<?> c) {
+    public synchronized boolean removeAll(@NotNull Collection<?> c) {
         boolean setChanged = false;
         for (var e : c) {
             setChanged = skipListMap.remove(e) != null || setChanged;
@@ -242,38 +257,31 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
 
     @NotNull
     @Override
-    public SortedSet<T> subSet(@NotNull T fromElement, @NotNull T toElement) {
+    public synchronized SortedSet<T> subSet(@NotNull T fromElement, @NotNull T toElement) {
         return new SkipList<>(skipListMap.subMap(
                 Objects.requireNonNull(fromElement), Objects.requireNonNull(toElement)).keySet());
     }
 
     @NotNull
     @Override
-    public SortedSet<T> headSet(T toElement) {
+    public synchronized SortedSet<T> headSet(T toElement) {
         return new SkipList<>(skipListMap.headMap(Objects.requireNonNull(toElement)).keySet());
     }
 
     @NotNull
     @Override
-    public SortedSet<T> tailSet(T fromElement) {
+    public synchronized SortedSet<T> tailSet(T fromElement) {
         return new SkipList<>(skipListMap.tailMap(Objects.requireNonNull(fromElement)).keySet());
     }
 
     @Override
-    public T first() {
+    public synchronized T first() {
         return skipListMap.firstKey();
     }
 
     @Override
-    public T last() {
+    public synchronized T last() {
         return skipListMap.lastKey();
-    }
-
-    /**
-     * @return the level of this list.
-     */
-    private int getListLevel() {
-        return skipListMap.getListLevel();
     }
 
     /**
@@ -292,9 +300,23 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * @param o The other instance of this class to be merged with this one.
      * @return this instance after merging.
      */
-    public SkipList<T> merge(@NotNull SkipList<T> o) {
-        // TODO: implement before in SkipListMap
-        throw new UnsupportedOperationException();
+    public synchronized SkipList<T> merge(@NotNull SkipList<T> o) {
+        addAll(o);
+        return this;
     }
 
+    @Override
+    public synchronized boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        SkipList<?> skipList = (SkipList<?>) o;
+
+        return skipListMap.equals(skipList.skipListMap);
+    }
+
+    @Override
+    public synchronized int hashCode() {
+        return skipListMap.hashCode();
+    }
 }

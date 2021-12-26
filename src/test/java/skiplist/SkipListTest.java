@@ -1,0 +1,116 @@
+package skiplist;
+
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvFileSource;
+
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+class SkipListTest {
+
+    private final static String LIST_ELEMENTS_SEPARATOR = "_";
+    private final static String RESOURCE_FILE_PATH = "skipListOperation.csv";
+
+    private static SkipList<Integer> createSkipListOfIntegersFromString(String listAsString) {
+        var l = new SkipList<Integer>();
+        l.addAll(createListOfIntegersFromString(listAsString));
+        return l;
+    }
+
+    private static List<Integer> createListOfIntegersFromString(String listAsString) {
+        return Arrays.stream(listAsString == null ? new String[0] : listAsString.split(LIST_ELEMENTS_SEPARATOR))
+                .map(Integer::parseInt)
+                .collect(Collectors.toList());
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
+    void union(String l1AsStr, String l2AsStr, String unionAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        var expected = createSkipListOfIntegersFromString(unionAsStr);
+        var actual = SkipList.union(l1, l2);
+        assertEquals(expected, actual);
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
+    void intersection(String l1AsStr, String l2AsStr, String ignored, String intersectionAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        var expected = createSkipListOfIntegersFromString(intersectionAsStr);
+        var actual = SkipList.intersection(l1, l2);
+        assertEquals(expected, actual);
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
+    void merge(String l1AsStr, String l2AsStr, String ignored, String ignored2, String mergeAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        var expected = createSkipListOfIntegersFromString(mergeAsStr);
+        assertEquals(expected, l1.merge(l2));
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
+    void addAll(String l1AsStr, String l2AsStr, String unionAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var expected = createSkipListOfIntegersFromString(unionAsStr);
+        l1.addAll(createListOfIntegersFromString(l2AsStr));
+        assertEquals(expected, l1);
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
+    void containsAll(String l1AsStr, String l2AsStr, String unionAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        var union = createSkipListOfIntegersFromString(unionAsStr);
+        assertTrue(union.containsAll(l1));
+        assertTrue(union.containsAll(l2));
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
+    void toArray(String listAsString) {
+        var list = createSkipListOfIntegersFromString(listAsString);
+        Object[] toArray = list.toArray();
+        assertEquals(list.size(), toArray.length);
+        var iterator = list.iterator();
+        int i;
+        for (i = 0; iterator.hasNext(); i++) {
+            assertEquals(iterator.next(), toArray[i]);
+        }
+        assertEquals(i, toArray.length);
+    }
+
+    @ParameterizedTest
+    @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
+    void toArray2(String listAsString) {
+        List<Integer> integers = createListOfIntegersFromString(listAsString)
+                .stream().sorted().collect(Collectors.toList());
+        var list = createSkipListOfIntegersFromString(listAsString);
+        final int PREFIXED_SIZE_ARRAY = 2;
+        Integer[] destArray = new Integer[PREFIXED_SIZE_ARRAY];
+        Integer[] toArray = list.toArray(destArray);
+
+        assertEquals(list.size(), toArray.length);
+        var iterator = list.iterator();
+        int i;
+        for (i = 0; iterator.hasNext(); i++) {
+            assertEquals(iterator.next(), toArray[i]);
+        }
+        assertEquals(i, toArray.length);
+
+        var EXPECTED_NUM_OF_ELEMENTS = Math.min(integers.size(), PREFIXED_SIZE_ARRAY);
+        assertEquals(integers.subList(0, EXPECTED_NUM_OF_ELEMENTS), Arrays.asList(destArray).subList(0, EXPECTED_NUM_OF_ELEMENTS));
+
+        for (int j = EXPECTED_NUM_OF_ELEMENTS; j < destArray.length; j++) {
+            assertNull(destArray[j]);
+        }
+    }
+}
