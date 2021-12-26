@@ -70,6 +70,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     private SkipListNode<K, V> header;
 
     /**
+     * Rightmost non-null nodes of this instance.
+     */
+    @NotNull
+    private SkipListNode<K, V>[] rightmostNodes;
+
+    /**
      * Constructor.
      *
      * @param P The fraction of the nodes with level i pointers that also have level i+1 pointers.
@@ -99,6 +105,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      */
     private void initList() {
         header = new SkipListNode<>(null, null, MAX_LEVEL);
+        //noinspection unchecked    // generic array creation
+        rightmostNodes = Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
         listLevel = 0;
         size = 0;
     }
@@ -249,7 +257,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Nullable
     @Override
-    public synchronized V put(@NotNull K key, V value) {
+    public synchronized V put(@NotNull K key, V value) {    // TODO: test update of last node
 
         @NotNull var nodeFinder = new NodeFinder<>(key, header, listLevel);
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.foundNode;
@@ -267,9 +275,11 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             }
             var nodeToInsert = new SkipListNode<>(key, value, randomLevel);
             for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
-                var rightmostNodeThisLevel = rightmostNodesLowerThanGivenKey[level];
-                nodeToInsert.setNext(level, rightmostNodeThisLevel.getNext(level));
-                rightmostNodeThisLevel.setNext(level, nodeToInsert);
+                nodeToInsert.setNext(level, rightmostNodesLowerThanGivenKey[level].getNext(level));
+                rightmostNodesLowerThanGivenKey[level].setNext(level, nodeToInsert);
+                if (rightmostNodesLowerThanGivenKey[level] == rightmostNodes[level]/*compare object reference*/) {   // update rightmost nodes of list
+                    rightmostNodes[level] = nodeToInsert;
+                }
             }
             size++;
         }
@@ -303,23 +313,30 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Nullable
     @Override
-    public synchronized V remove(@NotNull Object key) {
+    public synchronized V remove(@NotNull Object key) { // TODO: test correct update of last node
 
         @NotNull var nodeFinder = new NodeFinder<>(key, header, listLevel);
-        @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.foundNode;
+        @Nullable var nodeToRemove = nodeFinder.foundNode;
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
-        if (nodeEventuallyAlreadyPresent != null /*node found*/) {
+        if (nodeToRemove != null /*node found*/) {
 
             for (int level = 0; level < listLevel; level++) {   // update pointers (actual deletion is here)
-                var rightmostNodeThisLevel = rightmostNodesLowerThanGivenKey[level];
-                if (rightmostNodeThisLevel != nodeEventuallyAlreadyPresent) {
+                var rightmostNodeThisLevelBeforeTheOneToRemove = rightmostNodesLowerThanGivenKey[level];
+                if (rightmostNodeThisLevelBeforeTheOneToRemove.getNext(level) != nodeToRemove) {
                     break;
+                } else {
+                    if (nodeToRemove == rightmostNodes[level]/*compare object reference*/) {   // update rightmost nodes of list
+                        rightmostNodes[level] = rightmostNodeThisLevelBeforeTheOneToRemove;
+                        rightmostNodeThisLevelBeforeTheOneToRemove.setNext(level, null);
+                    } else {
+                        var nodeFollowingTheOneToRemoveAtThisLevel = nodeToRemove.getNext(level);
+                        rightmostNodeThisLevelBeforeTheOneToRemove.setNext(level, nodeFollowingTheOneToRemoveAtThisLevel);
+                    }
                 }
-                rightmostNodeThisLevel.setNext(level, nodeEventuallyAlreadyPresent.getNext(level));
             }
-            oldValue = nodeEventuallyAlreadyPresent.getValue();
+            oldValue = nodeToRemove.getValue();
             // here the node is out of the list and memory can be free (in Java: garbage collector)
             size--;
 
@@ -330,6 +347,24 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         }
 
         return oldValue;
+    }
+
+
+    /**
+     * Creates a copy of the given node and inserts it at the end of this instance,
+     * without checking the order, which is a programmer's responsibility.
+     *
+     * @param node The node to be copied and whose copy has to be inserted at
+     *             the end of this instance.
+     */
+    void copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) { // TODO: test
+        var nodeToInsert = new SkipListNode<>(node);
+        for (int level = 0; level < node.getLevel(); level++) {   // update pointers (actual insertion is here)
+            nodeToInsert.setNext(level, null/*node is added at the end of the list, there are no more nodes following this one*/);
+            rightmostNodes[level].setNext(level, nodeToInsert);
+            rightmostNodes[level] = nodeToInsert;
+        }
+        size++;
     }
 
     @Override

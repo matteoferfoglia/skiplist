@@ -16,7 +16,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * The {@link SkipListMap} from which this list is created.
      */
     @NotNull
-    private final SkipListMap<T, ?> skipListMap;
+    private final SkipListMap<T, Object> skipListMap;
 
     /**
      * @param P See the description of the parameter for {@link SkipListMap}.
@@ -43,7 +43,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         skipListMap = new SkipListMap<>();
         addAll(Objects.requireNonNull(collection));
     }
-
 
     @Override
     public int size() {
@@ -185,12 +184,14 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
             }
             return null;
         };
+
         while (currentA != null && currentB != null) {
             assert currentA.getKey() != null;
             assert currentB.getKey() != null;
             var comparison = currentA.getKey().compareTo(currentB.getKey());
             if (comparison == 0) {
-                intersection.add(currentA.getKey());    // TODO: replace with direct insert (add() at this moment will re-do the search inside the list from the beginning, but we do not need it because we already have the cursor to the position where to add the new node).
+                //noinspection unchecked    // only keys matter for SkipList
+                intersection.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
                 currentA = currentA.getNext(SkipListMap.LOWEST_NODE_LEVEL_INCLUDED);
                 currentB = currentB.getNext(SkipListMap.LOWEST_NODE_LEVEL_INCLUDED);
             } else if (comparison < 0) {

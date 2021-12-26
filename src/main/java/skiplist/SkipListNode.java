@@ -65,6 +65,20 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
         this.forwardPointers = (SkipListNode<K, V>[]) new SkipListNode[level];
     }
 
+    /**
+     * Copy constructor.
+     *
+     * @param skipListNode The node to be copied.
+     */
+    public SkipListNode(@NotNull SkipListNode<K, V> skipListNode) {
+        this.key = skipListNode.key;
+        this.value = skipListNode.value;
+        var level = skipListNode.forwardPointers.length;
+        //noinspection unchecked    // generic array creation
+        this.forwardPointers = (SkipListNode<K, V>[]) new SkipListNode[level];
+        System.arraycopy(skipListNode.forwardPointers, 0, this.forwardPointers, 0, level);
+    }
+
     @Override
     public String toString() {
         return "{key: " + key
