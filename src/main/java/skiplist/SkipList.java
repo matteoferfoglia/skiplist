@@ -19,6 +19,9 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     private final SkipListMap<T, Object> skipListMap;
 
     /**
+     * Constructor.
+     * Default missing parameters are used, as described in {@link SkipListMap#SkipListMap(double)}.
+     *
      * @param P See the description of the parameter for {@link SkipListMap}.
      */
     public SkipList(double P) {
@@ -26,7 +29,28 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     /**
-     * Default constructor
+     * Constructor.
+     * Default missing parameters are used, as described in {@link SkipListMap#SkipListMap(int)}.
+     *
+     * @param maxListLevel See the description of the parameter for {@link SkipListMap}.
+     */
+    public SkipList(int maxListLevel) {
+        skipListMap = new SkipListMap<>(maxListLevel);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param maxListLevel See the description of the parameter for {@link SkipListMap#SkipListMap(int, double)}.
+     * @param P            See the description of the parameter for {@link SkipListMap#SkipListMap(int, double)}.
+     */
+    public SkipList(int maxListLevel, double P) {
+        skipListMap = new SkipListMap<>(maxListLevel, P);
+    }
+
+    /**
+     * Default constructor.
+     * Default parameters are used, as described in {@link SkipListMap#SkipListMap()}.
      */
     public SkipList() {
         skipListMap = new SkipListMap<>();

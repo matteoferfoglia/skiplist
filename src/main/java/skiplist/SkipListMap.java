@@ -25,15 +25,14 @@ import java.util.stream.Collectors;
 public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Serializable, Iterable<K> {
 
     /**
-     * The maximum value (constant, this is a parameter) to which levels
-     * of nodes are capped.
-     */
-    public static final int MAX_LEVEL = 16;
-
-    /**
      * The minimum value for the level, suitable as index.
      */
     static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
+
+    /**
+     * The default maximum value for {@link #MAX_LEVEL}.
+     */
+    private static final int DEFAULT_MAX_LEVEL = 16;
 
     /**
      * The default fraction of the nodes with level i pointers that also have level i+1 pointers.
@@ -49,6 +48,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * The maximum value (included) for {@link #P}.
      */
     private static final double MAX_P_INCLUDED = 1;
+
+    /**
+     * The maximum value (constant, this is a parameter) to which levels
+     * of nodes are capped for this instance.
+     */
+    private final int MAX_LEVEL;
 
     /**
      * The fraction of the nodes with level i pointers that also have level i+1 pointers.
@@ -83,10 +88,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     /**
      * Constructor.
      *
-     * @param P The fraction of the nodes with level i pointers that also have level i+1 pointers.
+     * @param maxListLevel The maximum allowed level for this instance.
+     * @param P            The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
-    public SkipListMap(final double P) {
-        if (MIN_P_EXCLUDED < P && P <= MAX_P_INCLUDED) {
+    public SkipListMap(final int maxListLevel, final double P) {
+        if (0 <= maxListLevel && MIN_P_EXCLUDED < P && P <= MAX_P_INCLUDED) {
+            this.MAX_LEVEL = maxListLevel;
             this.P = P;
             initList();
             assert size == 0;
@@ -94,15 +101,34 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             assert header != null;
         } else {
             throw new IllegalArgumentException(
-                    "P value must be such that " + MIN_P_EXCLUDED + "<P<=" + MAX_P_INCLUDED);
+                    "The list level must be >=0 and " +
+                            "P value must be such that " + MIN_P_EXCLUDED + "<P<=" + MAX_P_INCLUDED);
         }
     }
 
     /**
-     * Constructor. {@link #DEFAULT_P} value is used.
+     * Constructor.
+     *
+     * @param maxListLevel The maximum allowed level for this instance.
+     */
+    public SkipListMap(final int maxListLevel) {
+        this(maxListLevel, DEFAULT_P);
+    }
+
+    /**
+     * Constructor.
+     *
+     * @param P The fraction of the nodes with level i pointers that also have level i+1 pointers.
+     */
+    public SkipListMap(final double P) {
+        this(DEFAULT_MAX_LEVEL, P);
+    }
+
+    /**
+     * Constructor. {@link #DEFAULT_MAX_LEVEL} and {@link #DEFAULT_P} values are used.
      */
     public SkipListMap() {
-        this(DEFAULT_P);
+        this(DEFAULT_MAX_LEVEL, DEFAULT_P);
     }
 
     /**
@@ -540,7 +566,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             // generic array creation
             //noinspection unchecked
             this.rightmostNodes =
-                    (SkipListNode<K, V>[]) Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
+                    (SkipListNode<K, V>[]) Collections.nCopies(header.getLevel(), header).toArray(new SkipListNode[0]);
         }
 
         /**
