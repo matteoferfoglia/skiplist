@@ -267,6 +267,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Override
     public synchronized boolean containsValue(Object value) {
+        //noinspection SuspiciousMethodCalls
         return values().contains(value);
     }
 

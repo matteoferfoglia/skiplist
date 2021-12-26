@@ -30,6 +30,7 @@ class NodeFinder<K extends Comparable<K>, V> {
      * The header of the {@link SkipListMap} to which this instance refers to.
      */
     @NotNull
+    final
     SkipListNode<K, V> header;
 
     /**

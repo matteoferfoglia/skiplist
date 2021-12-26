@@ -151,6 +151,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
 
     @Override
     public synchronized boolean contains(Object o) {
+        //noinspection SuspiciousMethodCalls
         return skipListMap.containsKey(o);
     }
 
@@ -243,7 +244,8 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     @Override
     public synchronized boolean removeAll(@NotNull Collection<?> c) {
         boolean setChanged = false;
-        for (var e : c) {
+        for (@NotNull var e : c) {
+            //noinspection SuspiciousMethodCalls
             setChanged = skipListMap.remove(e) != null || setChanged;
         }
         return setChanged;
