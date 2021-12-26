@@ -44,67 +44,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         addAll(Objects.requireNonNull(collection));
     }
 
-    @Override
-    public int size() {
-        return skipListMap.size();
-    }
-
-    @Override
-    public boolean isEmpty() {
-        return skipListMap.isEmpty();
-    }
-
-    @Override
-    public boolean contains(Object o) {
-        return skipListMap.containsKey(o);
-    }
-
-    @NotNull
-    @Override
-    public Iterator<T> iterator() {
-        return skipListMap.iterator();
-    }
-
-    @NotNull
-    @Override
-    public Object[] toArray() { // TODO: test
-        return skipListMap.entrySet().toArray();
-    }
-
-    @NotNull
-    @Override
-    public <T1> T1[] toArray(@NotNull T1[] a) { // TODO: test
-        return skipListMap.entrySet().toArray((T1[]) Array.newInstance(a.getClass(), 0));
-    }
-
-    @Override
-    public boolean add(@NotNull T t) {
-        skipListMap.put(Objects.requireNonNull(t), null);
-        return true;
-    }
-
-    @Override
-    public boolean remove(@NotNull Object o) {
-        var old = skipListMap.remove(o);
-        return old != null;
-    }
-
-    @Override
-    public boolean containsAll(@NotNull Collection<?> c) {  // TODO: test
-        return c.stream().unordered().filter(e -> skipListMap.containsKey(c)).count() == c.size();
-    }
-
-    @Override
-    public boolean addAll(@NotNull Collection<? extends T> c) { // TODO: test
-        boolean collectionWillChange = !containsAll(c);
-        if (collectionWillChange) {
-            c.stream().sorted().forEach(this::add);
-            return true;
-        } else {
-            return false;
-        }
-    }
-
     /**
      * Computes the union of the instances passed as parameters without
      * modifying them.
@@ -119,37 +58,10 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> union(
             @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {   // TODO : test
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public boolean retainAll(@NotNull Collection<?> c) {
-        throw new UnsupportedOperationException();
-    }
-
-    @Override
-    public void clear() {
-        skipListMap.clear();
-    }
-
-    @Override
-    public String toString() {
-        StringBuilder sb = new StringBuilder(
-                "SkipList{P=" + skipListMap.getP()
-                        + ", size=" + size()
-                        + ", listLevel=" + skipListMap.getListLevel()
-                        + ", headerForwardsTo: " + skipListMap.getHeader().getForwardPointersKeys()
-                        + ", \n\tnodes=[");
-
-        var nextNode = skipListMap.getHeader().getNext(0);
-        for (int i = 0; nextNode != null; i++) {
-            sb.append("\n\t\t").append(i + 1).append(":\t").append("{value: ").append(nextNode.getKey())
-                    .append(", forwardsTo: ").append(nextNode.getForwardPointersKeys());
-            nextNode = nextNode.getNext(0);
-        }
-        sb.append("\n\t]}");
-
-        return sb.toString();
+        SkipList<T> union = new SkipList<>();
+        union.addAll(a);
+        union.addAll(b);
+        return union;
     }
 
     /**
@@ -202,6 +114,91 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         }
 
         return intersection;
+    }
+
+    @Override
+    public int size() {
+        return skipListMap.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        return skipListMap.isEmpty();
+    }
+
+    @Override
+    public boolean contains(Object o) {
+        return skipListMap.containsKey(o);
+    }
+
+    @NotNull
+    @Override
+    public Iterator<T> iterator() {
+        return skipListMap.iterator();
+    }
+
+    @NotNull
+    @Override
+    public Object[] toArray() { // TODO: test
+        return skipListMap.entrySet().toArray();
+    }
+
+    @NotNull
+    @Override
+    public <T1> T1[] toArray(@NotNull T1[] a) { // TODO: test
+        return skipListMap.entrySet().toArray((T1[]) Array.newInstance(a.getClass(), 0));
+    }
+
+    @Override
+    public boolean add(@NotNull T t) {
+        skipListMap.put(Objects.requireNonNull(t), null);
+        return true;
+    }
+
+    @Override
+    public boolean remove(@NotNull Object o) {
+        var old = skipListMap.remove(o);
+        return old != null;
+    }
+
+    @Override
+    public boolean containsAll(@NotNull Collection<?> c) {  // TODO: test
+        return c.stream().unordered().filter(e -> skipListMap.containsKey(c)).count() == c.size();
+    }
+
+    @Override
+    public boolean addAll(@NotNull Collection<? extends T> c) { // TODO: test
+        return skipListMap.putAllKeys(c);
+    }
+
+    @Override
+    public boolean retainAll(@NotNull Collection<?> c) {
+        throw new UnsupportedOperationException();
+    }
+
+    @Override
+    public void clear() {
+        skipListMap.clear();
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder(
+                "SkipList{P=" + skipListMap.getP()
+                        + ", size=" + size()
+                        + ", listLevel=" + skipListMap.getListLevel()
+                        + ", headerForwardsTo: " + skipListMap.getHeader().getForwardPointersKeys()
+                        + ", \n\tnodes=[");
+
+        var nextNode = skipListMap.getHeader().getNext(0);
+        for (int i = 0; nextNode != null; i++) {
+            sb.append("\n\t\t").append(i + 1).append(":\t").append("{value: ").append(nextNode.getKey())
+                    .append(", forwardsTo: ").append(nextNode.getForwardPointersKeys());
+            nextNode = nextNode.getNext(0);
+        }
+        sb.append("\n\t]}");
+
+        return sb.toString();
     }
 
     @Override

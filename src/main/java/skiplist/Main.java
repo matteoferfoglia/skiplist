@@ -1,5 +1,7 @@
 package skiplist;
 
+import java.util.Arrays;
+
 /**
  * Class with examples of use of {@link SkipListMap}.
  *
@@ -43,6 +45,11 @@ public class Main {
         l2.add(5);
         System.out.println("l2:\t" + l2);
 
+        System.out.println("union:\t" + SkipList.union(l1, l2));
         System.out.println("intersection:\t" + SkipList.intersection(l1, l2));
+
+        SkipList<Integer> l3 = new SkipList<>();
+        l3.addAll(Arrays.asList(1, 5, 3, 4, 6));
+        System.out.println("l3:\t" + l3);
     }
 }

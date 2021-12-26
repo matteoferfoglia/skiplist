@@ -281,10 +281,13 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * in this instance of the {@link SkipListNode} from the input list that you have
      * already added. For this purpose, the method {@link NodeFinder#findNextNode(Object)}
      * is used.
+     *
+     * @return the old value corresponding to the given key.
      */
     @Nullable
     private V put(@NotNull K key, V value, @NotNull NodeFinder<K, V> nodeFinder) {
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.findNextNode(key);
+        assert nodeFinder.isKeyLowerOrEqualToKeyOfNode(key, nodeEventuallyAlreadyPresent);
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
@@ -398,7 +401,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Override
     public synchronized void putAll(@NotNull Map<? extends K, ? extends V> m) { // TODO: test
-
         if (!m.isEmpty()) {
             var sortedEntrySet =
                     m.entrySet().stream().sorted(Entry.comparingByKey()).collect(Collectors.toList());
@@ -407,7 +409,28 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                 put(entry.getKey(), entry.getValue(), nodeFinder);
             }
         }
+    }
 
+    /**
+     * Similar to {@link #putAll(Map)}, but this method adds all input keys
+     * to this instance and set to null the corresponding values.
+     * If one of the input key already exists in this instance, the
+     * corresponding node will be replaced.
+     *
+     * @param keys Input keys to add to this instance.
+     * @return true if this instance has changed as consequence of the invocation of
+     * this method.
+     */
+    public synchronized boolean putAllKeys(@NotNull Collection<? extends K> keys) { // TODO: test
+        boolean changed = false;
+        if (!keys.isEmpty()) {
+            var sortedKeySet = keys.stream().sorted().collect(Collectors.toList());
+            var nodeFinder = new NodeFinder<>(header);
+            for (var key : sortedKeySet) {
+                changed = put(key, null, nodeFinder) != null || changed;
+            }
+        }
+        return changed;
     }
 
     /**
@@ -552,8 +575,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             }
 
             var nextNode = currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
-            currentNode = nextNode != null && nextNode.isSameKey(key) ? nextNode : currentNode;  // null if node not found
-            return nextNode;
+            if (nextNode != null && nextNode.isSameKey(key)) {
+                currentNode = nextNode;
+                return currentNode;
+            } else {
+                return null;    // null if node not found
+            }
         }
 
         /**
