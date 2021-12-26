@@ -144,8 +144,23 @@ class SkipListMapTest {
         skipListMap.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
         assertEquals(NUM_OF_ELEMENTS_TO_ADD_IN_TESTS, MAP_OF_NODES_TO_ADD_IN_TESTS.size());
         MAP_OF_NODES_TO_ADD_IN_TESTS.forEach((key, value) -> {
-            assertTrue(skipListMap.containsKey(key));
-            assertTrue(skipListMap.containsValue(value));
+            var node = new NodeFinder<>(skipListMap.getHeader()).findNextNode(key);
+            assertNotNull(node);
+            assertEquals(key, node.getKey());
+            assertEquals(value, node.getValue());
+        });
+    }
+
+    @Test
+    void putAllKeys() {
+        assert skipListMap.isEmpty();  // precondition
+        assertTrue(skipListMap.putAllKeys(MAP_OF_NODES_TO_ADD_IN_TESTS.keySet()));
+        assertEquals(NUM_OF_ELEMENTS_TO_ADD_IN_TESTS, MAP_OF_NODES_TO_ADD_IN_TESTS.size());
+        MAP_OF_NODES_TO_ADD_IN_TESTS.forEach((key, ignored) -> {
+            var node = new NodeFinder<>(skipListMap.getHeader()).findNextNode(key);
+            assertNotNull(node);
+            assertEquals(key, node.getKey());
+            assertNull(node.getValue());
         });
     }
 

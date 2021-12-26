@@ -134,7 +134,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     /**
      * Initializes fields of this class.
      */
-    private void initList() {
+    private synchronized void initList() {
         header = new SkipListNode<>(null, null, MAX_LEVEL);
         //noinspection unchecked    // generic array creation
         rightmostNodes = Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
@@ -289,7 +289,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Nullable
     @Override
-    public synchronized V put(@NotNull K key, V value) {    // TODO: test update of last node
+    public synchronized V put(@NotNull K key, V value) {
         return put(key, value, new NodeFinder<>(header));
     }
 
@@ -311,7 +311,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @return the old value corresponding to the given key.
      */
     @Nullable
-    private V put(@NotNull K key, V value, @NotNull NodeFinder<K, V> nodeFinder) {
+    private synchronized V put(@NotNull K key, V value, @NotNull NodeFinder<K, V> nodeFinder) {
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.findNextNode(key);
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
@@ -365,7 +365,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Nullable
     @Override
-    public synchronized V remove(@NotNull Object key) { // TODO: test correct update of last node
+    public synchronized V remove(@NotNull Object key) {
 
         @NotNull var nodeFinder = new NodeFinder<>(header);
         @Nullable var nodeToRemove = nodeFinder.findNextNode(key);
@@ -401,7 +401,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         return oldValue;
     }
 
-
     /**
      * Creates a copy of the given node and inserts it at the end of this instance,
      * without checking the order, which is a programmer's responsibility.
@@ -409,7 +408,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @param node The node to be copied and whose copy has to be inserted at
      *             the end of this instance.
      */
-    void copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) { // TODO: test
+    void copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) {
         var nodeToInsert = new SkipListNode<>(node);
         for (int level = 0; level < node.getLevel(); level++) {   // update pointers (actual insertion is here)
             nodeToInsert.setNext(level, null/*node is added at the end of the list, there are no more nodes following this one*/);
@@ -425,7 +424,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     @Override
-    public synchronized void putAll(@NotNull Map<? extends K, ? extends V> m) { // TODO: test
+    public synchronized void putAll(@NotNull Map<? extends K, ? extends V> m) {
         if (!m.isEmpty()) {
             var sortedEntrySet =
                     m.entrySet().stream().sorted(Entry.comparingByKey()).collect(Collectors.toList());
@@ -446,8 +445,9 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @return true if this instance has changed as consequence of the invocation of
      * this method.
      */
-    public synchronized boolean putAllKeys(@NotNull Collection<? extends K> keys) { // TODO: test
+    public synchronized boolean putAllKeys(@NotNull Collection<? extends K> keys) {
         boolean changed = false;
+        var initialSize = size();
         if (!keys.isEmpty()) {
             var sortedKeySet = keys.stream().sorted().collect(Collectors.toList());
             var nodeFinder = new NodeFinder<>(header);
@@ -455,7 +455,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                 changed = put(key, null, nodeFinder) != null || changed;
             }
         }
-        return changed;
+        return changed || size() != initialSize;
     }
 
     /**
@@ -538,7 +538,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * the same elements in the same order.
      */
     @Override
-    public boolean equals(Object o) {
+    public synchronized boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
@@ -564,7 +564,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     @Override
-    public int hashCode() {
+    public synchronized int hashCode() {
         int result;
         long temp;
         result = MAX_LEVEL;
