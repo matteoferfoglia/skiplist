@@ -1,12 +1,18 @@
 package skiplist;
 
+import java.io.*;
+import java.util.AbstractMap;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Class with examples of use of {@link SkipListMap}.
  *
  * @author Matteo Ferfoglia
  */
+@SuppressWarnings("ResultOfMethodCallIgnored")
 public class Main {
 
     /**
@@ -14,7 +20,7 @@ public class Main {
      *
      * @param args Command-line args
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException, ClassNotFoundException {
         SkipListMap<Integer, Integer> m = new SkipListMap<>();
         m.put(1, null);
         m.put(3, null);
@@ -51,5 +57,53 @@ public class Main {
         SkipList<Integer> l3 = new SkipList<>();
         l3.addAll(Arrays.asList(1, 5, 3, 4, 6));
         System.out.println("l3:\t" + l3);
+
+
+        // map de/serialization
+        File f = new File("exampleSerialization");
+        if (f.exists()) {
+            f.delete();
+        }
+        var veryLargeMap = new SkipListMap<Integer, String>();
+        veryLargeMap.putAll(IntStream.range(0, 9999)
+                .unordered().parallel()
+                .mapToObj(i -> new AbstractMap.SimpleEntry<>(i, "FooBar"))
+                .collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue)));
+
+        try (ObjectOutputStream oos = new ObjectOutputStream(
+                new BufferedOutputStream(
+                        new FileOutputStream(f, false)))) {
+            oos.writeObject(veryLargeMap);
+            oos.flush();
+        }
+
+        try (ObjectInputStream ois = new ObjectInputStream(new BufferedInputStream(new FileInputStream(f)))) {
+            //noinspection unchecked
+            SkipListMap<Integer, String> veryLargeMapRead = (SkipListMap<Integer, String>) ois.readObject();
+        }
+
+
+        // list de/serialization
+        if (f.exists()) {
+            f.delete();
+        }
+        var veryLargeList = new SkipList<Integer>();
+        veryLargeList.addAll(IntStream.range(0, 9999).boxed().collect(Collectors.toList()));
+
+        try (ObjectOutputStream oosList = new ObjectOutputStream(
+                new BufferedOutputStream(
+                        new FileOutputStream(f, false)))) {
+            oosList.writeObject(veryLargeList);
+            oosList.flush();
+        }
+
+        try (ObjectInputStream oisList = new ObjectInputStream(new BufferedInputStream(new FileInputStream(f)))) {
+            //noinspection unchecked
+            SkipList<Integer> veryLargeListRead = (SkipList<Integer>) oisList.readObject();
+        }
+
+        if (f.exists()) {
+            f.delete();
+        }
     }
 }

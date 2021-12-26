@@ -3,7 +3,10 @@ package skiplist;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.Serializable;
+import java.io.Externalizable;
+import java.io.IOException;
+import java.io.ObjectInput;
+import java.io.ObjectOutput;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.function.Predicate;
@@ -22,7 +25,7 @@ import java.util.stream.Collectors;
  */
 @SuppressWarnings("UnusedReturnValue")
 // returned values of some methods are not used in project, but they can be useful
-public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Serializable, Iterable<K> {
+public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Externalizable, Iterable<K> {
 
     /**
      * The minimum value for the level, suitable as index.
@@ -53,12 +56,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * The maximum value (constant, this is a parameter) to which levels
      * of nodes are capped for this instance.
      */
-    private final int MAX_LEVEL;
+    private int MAX_LEVEL;
 
     /**
      * The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
-    private final double P;
+    private double P;
 
     /**
      * The number of elements in this list.
@@ -98,7 +101,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             initList();
             assert size == 0;
             assert listLevel == 0;
-            assert header != null;
         } else {
             throw new IllegalArgumentException(
                     "The list level must be >=0 and " +
@@ -578,4 +580,35 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         return result;
     }
 
+    @Override
+    public void writeExternal(ObjectOutput out) throws IOException {
+        out.writeObject(P);
+        out.writeObject(MAX_LEVEL);
+        out.writeObject(listLevel);
+        out.writeObject(size);
+        var it = new SkipListIterator<>(header);
+        while (it.hasNext()) {
+            var node = it.nextNode();
+            out.writeObject(node.getKey());
+            out.writeObject(node.getValue());
+        }
+        out.flush();
+    }
+
+    @SuppressWarnings("unchecked")  // casting for correct deserialization
+    @Override
+    public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        // Read in the same order they were written
+        P = (double) in.readObject();
+        MAX_LEVEL = (int) in.readObject();
+        initList();
+        listLevel = (int) in.readObject();
+        var nElements = (int) in.readObject();
+        var nodeFinder = new NodeFinder<>(header);
+        for (int i = 0; i < nElements; i++) {
+            K key = (K) in.readObject();
+            V value = (V) in.readObject();
+            put(key, value, nodeFinder);
+        }
+    }
 }

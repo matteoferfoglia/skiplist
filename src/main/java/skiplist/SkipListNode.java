@@ -3,7 +3,6 @@ package skiplist;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.io.Serializable;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -20,7 +19,7 @@ import java.util.stream.Collectors;
  */
 @SuppressWarnings("UnusedReturnValue")
 // returned values of some methods are not used in project, but they can be useful
-public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>, Serializable {
+public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V> {
 
     /**
      * The minimum value allowed for the level of the node.

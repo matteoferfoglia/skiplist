@@ -4,14 +4,14 @@
 
     <groupId>org.example</groupId>
     <artifactId>skiplist</artifactId>
-    <version>1.1.0</version>
+    <version>1.1.1</version>
     <packaging>jar</packaging>
 
 
     <properties>
         <maven.compiler.source>10</maven.compiler.source><!-- Java version for language feature -->
         <maven.compiler.target>10</maven.compiler.target><!-- Java version for compiling classes -->
-        <project.main.class><!-- skiplist.Main class here --></project.main.class><!-- for exec-maven-plugin -->
+        <project.main.class>skiplist.Main</project.main.class><!-- for exec-maven-plugin -->
         <project.build.dependencies.dir.prefix>dependencies
         </project.build.dependencies.dir.prefix><!-- for maven-dependency-plugin, maven-jar-plugin -->
         <project.resource.dir>src/main/resources</project.resource.dir><!-- for maven-resources-plugin -->

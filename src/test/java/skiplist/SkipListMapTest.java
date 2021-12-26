@@ -7,6 +7,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.MethodSource;
 
+import java.io.*;
 import java.util.AbstractMap;
 import java.util.Arrays;
 import java.util.Map;
@@ -267,4 +268,26 @@ class SkipListMapTest {
         }
     }
 
+    @Test
+    void readWriteExternal() throws IOException, ClassNotFoundException {
+        assert skipListMap.isEmpty();
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        ObjectOutputStream oos = new ObjectOutputStream(new BufferedOutputStream(baos));
+
+        skipListMap.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
+        assert skipListMap.size() == MAP_OF_NODES_TO_ADD_IN_TESTS.size();
+
+        // write object
+        assert baos.size() == 0;
+        oos.writeObject(skipListMap);
+        oos.flush();
+        assertTrue(baos.size() > 0);
+
+        // read object
+        ObjectInputStream ois = new ObjectInputStream(
+                new BufferedInputStream(new ByteArrayInputStream(baos.toByteArray())));
+        @SuppressWarnings("unchecked")
+        SkipListMap<Integer, Integer> read = (SkipListMap<Integer, Integer>) ois.readObject();
+        assertEquals(skipListMap, read);
+    }
 }
