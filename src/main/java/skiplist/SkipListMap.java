@@ -597,18 +597,16 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
-     * Two instances are considered equals if they have the same parameters and
+     * Two instances are considered equals if they have the same size and
      * the same elements in the same order.
      */
     @Override
-    public synchronized boolean equals(Object o) {
+    public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
 
         SkipListMap<?, ?> that = (SkipListMap<?, ?>) o;
 
-        if (maxListLevel != that.maxListLevel) return false;
-        if (Double.compare(that.P, P) != 0) return false;
         if (size != that.size) return false;
 
         boolean equal = true;
@@ -627,17 +625,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     @Override
-    public synchronized int hashCode() {
-        int result;
-        long temp;
-        result = maxListLevel;
-        temp = Double.doubleToLongBits(P);
-        result = 31 * result + (int) (temp ^ (temp >>> 32));
-        result = 31 * result + size;
-        result = 31 * result + listLevel;
-        result = 31 * result + header.hashCode();
-        result = 31 * result + Arrays.hashCode(rightmostNodes);
-        return result;
+    public int hashCode() {
+        return 31 * size + entrySet().stream().unordered().mapToInt(Entry::hashCode).sum();
     }
 
     @Override
