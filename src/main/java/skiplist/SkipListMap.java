@@ -512,7 +512,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         boolean changed = false;
         var initialSize = size();
         if (!keys.isEmpty()) {
-            var sortedKeySet = keys.stream().sorted().collect(Collectors.toList());
+            var sortedKeySet = keys.stream().sorted().distinct().collect(Collectors.toList());
             var nodeFinder = new NodeFinder<>(header);
             for (var key : sortedKeySet) {
                 changed = put(key, null, nodeFinder) != null || changed;

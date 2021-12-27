@@ -19,19 +19,17 @@ class NodeFinder<K extends Comparable<K>, V> {
      */
     @NotNull
     final SkipListNode<K, V>[] rightmostNodes;
-
-    /**
-     * The current node, initialized with {@link #header} at the search of the search.
-     */
-    @NotNull
-    SkipListNode<K, V> currentNode;
-
     /**
      * The header of the {@link SkipListMap} to which this instance refers to.
      */
     @NotNull
     final
     SkipListNode<K, V> header;
+    /**
+     * The current node, initialized with {@link #header} at the search of the search.
+     */
+    @NotNull
+    SkipListNode<K, V> currentNode;
 
     /**
      * Constructor.
@@ -48,7 +46,10 @@ class NodeFinder<K extends Comparable<K>, V> {
 
     /**
      * Finds the node with the given key in the instance, starting searching from
-     * the node following the {@link #currentNode}.
+     * the node following the {@link #currentNode} (excluded).
+     * If the given key is equal to the current node key, then this method
+     * will throw an assertion error (it is a pre-condition that current node
+     * key must be lower than given key).
      *
      * @param key The key to search. It cannot be null.
      * @return The found node for the given key or null if not found.
@@ -57,9 +58,10 @@ class NodeFinder<K extends Comparable<K>, V> {
     public SkipListNode<K, V> findNextNode(@NotNull Object key) {
         //noinspection ConstantConditions   // one more assert is better than one less
         assert key != null;
+        assert !key.equals(currentNode.getKey());
 
-        for (int level = currentNode.getLevel() - 1;        // start search from the highest level node
-             level >= LOWEST_NODE_LEVEL_INCLUDED;   // down till the lowest level or break before if node is found
+        for (int level = currentNode.getLevel() - 1;    // start search from the highest level node
+             level >= LOWEST_NODE_LEVEL_INCLUDED;       // down till the lowest level or break before if node is found
              level--) {
 
             /*
