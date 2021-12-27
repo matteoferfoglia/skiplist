@@ -134,6 +134,32 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         return intersection;
     }
 
+    /**
+     * See {@link SkipListMap#setMaxListLevel(int)}.
+     *
+     * @param maxListLevel The new value for the maxListLevel.
+     * @return this instance after having updated the maxListLevel.
+     * @throws IllegalArgumentException If the input parameter is too low.
+     */
+    public SkipList<T> setMaxListLevel(int maxListLevel) {
+        skipListMap.setMaxListLevel(maxListLevel);
+        return this;
+    }
+
+
+    /**
+     * This method is similar to {@link #setMaxListLevel(int)}, but,
+     * instead of taking the new value as input parameter, this method
+     * uses some heuristics to choose the more adequate value according
+     * to the current size of this instance.
+     *
+     * @return this instance after having updated the maxListLevel.
+     */
+    public SkipList<T> setMaxListLevel() {
+        skipListMap.setMaxListLevel();
+        return this;
+    }
+
     @NotNull
     private SkipListNode<T, ?> getHeader() {
         return skipListMap.getHeader();

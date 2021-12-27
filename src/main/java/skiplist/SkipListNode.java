@@ -66,6 +66,9 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
 
     /**
      * Copy constructor.
+     * <strong>Important</strong>: Forward pointers are copied by reference,
+     * this means that copying the header of {@link SkipListMap} is not
+     * enough to have a copy of the entire {@link SkipListMap}.
      *
      * @param skipListNode The node to be copied.
      */
@@ -168,6 +171,11 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      */
     @Nullable
     public SkipListNode<K, V> setNext(int level, @Nullable SkipListNode<K, V> newForwardPointerAtLevel) {
+
+        // assert the forward pointer key is greater than this.key
+        assert newForwardPointerAtLevel == null
+                || (newForwardPointerAtLevel.key != null
+                && (this.key == null || newForwardPointerAtLevel.key.compareTo(this.key) > 0));
         return checkValidInputLevelBeforeGetOrSet(level, false, newForwardPointerAtLevel);
     }
 

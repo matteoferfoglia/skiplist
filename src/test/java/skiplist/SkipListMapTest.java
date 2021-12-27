@@ -290,4 +290,23 @@ class SkipListMapTest {
         SkipListMap<Integer, Integer> read = (SkipListMap<Integer, Integer>) ois.readObject();
         assertEquals(skipListMap, read);
     }
+
+    @Test
+    void setMaxListLevel() {
+        skipListMap.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
+        assert !skipListMap.isEmpty();
+        final int initialMaxListLevel = skipListMap.getMaxListLevel();
+        final int newMaxListLevel = initialMaxListLevel + 1;
+        var initialEntries = skipListMap.entrySet();
+        skipListMap.setMaxListLevel(newMaxListLevel);
+        assertEquals(newMaxListLevel, skipListMap.getMaxListLevel());
+        initialEntries.stream()
+                .unordered().parallel()
+                .forEach(entry -> {
+                    var key = entry.getKey();
+                    assertTrue(skipListMap.containsKey(key));
+                    assertEquals(entry.getValue(), skipListMap.get(key));
+                });
+        assertEquals(initialEntries.size(), skipListMap.size());
+    }
 }

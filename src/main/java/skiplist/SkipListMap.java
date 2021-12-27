@@ -27,13 +27,14 @@ import java.util.stream.Collectors;
 // returned values of some methods are not used in project, but they can be useful
 public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Externalizable, Iterable<K> {
 
+    public static final int MIN_ALLOWED_LIST_LEVEL = 1;
     /**
      * The minimum value for the level, suitable as index.
      */
     static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
 
     /**
-     * The default maximum value for {@link #MAX_LEVEL}.
+     * The default maximum value for {@link #maxListLevel}.
      */
     private static final int DEFAULT_MAX_LEVEL = 16;
 
@@ -56,7 +57,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * The maximum value (constant, this is a parameter) to which levels
      * of nodes are capped for this instance.
      */
-    private int MAX_LEVEL;
+    private int maxListLevel;
 
     /**
      * The fraction of the nodes with level i pointers that also have level i+1 pointers.
@@ -74,7 +75,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     private int listLevel = 0;
 
     /**
-     * The header of a skipList has forward pointers at level one through {@link #MAX_LEVEL}.
+     * The header of a skipList has forward pointers at level one through {@link #maxListLevel}.
      * The forward pointers of the header at levels higher than the current maximum level of
      * the list points to null.
      */
@@ -95,8 +96,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @param P            The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
     public SkipListMap(final int maxListLevel, final double P) {
-        if (0 <= maxListLevel && MIN_P_EXCLUDED < P && P <= MAX_P_INCLUDED) {
-            this.MAX_LEVEL = maxListLevel;
+        if (MIN_ALLOWED_LIST_LEVEL <= maxListLevel && MIN_P_EXCLUDED < P && P <= MAX_P_INCLUDED) {
+            this.maxListLevel = maxListLevel;
             this.P = P;
             initList();
             assert size == 0;
@@ -137,9 +138,9 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * Initializes fields of this class.
      */
     private synchronized void initList() {
-        header = new SkipListNode<>(null, null, MAX_LEVEL);
+        header = new SkipListNode<>(null, null, maxListLevel);
         //noinspection unchecked    // generic array creation
-        rightmostNodes = Collections.nCopies(MAX_LEVEL, header).toArray(new SkipListNode[0]);
+        rightmostNodes = Collections.nCopies(maxListLevel, header).toArray(new SkipListNode[0]);
         listLevel = 0;
         size = 0;
     }
@@ -157,6 +158,60 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      */
     public synchronized int getListLevel() {
         return listLevel;
+    }
+
+    /**
+     * @return the {@link #maxListLevel}.
+     */
+    public int getMaxListLevel() {
+        return maxListLevel;
+    }
+
+    /**
+     * Setter for the {@link #maxListLevel}. This method is very expensive,
+     * because updating the {@link #maxListLevel} implies re-create the entire instance
+     * with the new list level.
+     * Choosing an adequate {@link #maxListLevel} can lead to better performance
+     * when using this data structure.
+     *
+     * @param maxListLevel The new value for {@link #maxListLevel}.
+     * @return this instance after having updated the {@link #maxListLevel}.
+     * @throws IllegalArgumentException If the input parameter is lower than {@link #MIN_ALLOWED_LIST_LEVEL}.
+     */
+    public SkipListMap<K, V> setMaxListLevel(int maxListLevel) throws IllegalArgumentException {
+        if (maxListLevel < MIN_ALLOWED_LIST_LEVEL) {
+            throw new IllegalArgumentException("Minimum value for the input is: " + MIN_ALLOWED_LIST_LEVEL);
+        }
+        if (maxListLevel != this.maxListLevel) {
+            this.maxListLevel = maxListLevel;
+            SkipListMap<K, V> tmp = new SkipListMap<>();
+            tmp.putAll(this);
+            initList();
+            putAll(tmp);
+        }
+        return this;
+    }
+
+    /**
+     * This method is similar to {@link #setMaxListLevel(int)}, but,
+     * instead of taking the new value as input parameter, this method
+     * uses some heuristics to choose the more adequate value according
+     * to the current size of this instance.
+     *
+     * @return this instance after having updated the {@link #maxListLevel}.
+     */
+    public SkipListMap<K, V> setMaxListLevel() {
+        return setMaxListLevel(
+                Math.max(MIN_ALLOWED_LIST_LEVEL, (int) Math.round(log(1 / P, size))));
+    }
+
+    /**
+     * @param base The base of the logarithm.
+     * @param n    The argument for the logarithm.
+     * @return the log in the specified base of the given value.
+     */
+    private double log(double base, int n) {
+        return Math.log(n) / Math.log(base);
     }
 
     @Nullable
@@ -330,7 +385,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             }
             var nodeToInsert = new SkipListNode<>(key, value, randomLevel);
             for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
-                nodeToInsert.setNext(level, rightmostNodesLowerThanGivenKey[level].getNext(level));
+                var forwardPointerToSetForThisLevel = rightmostNodesLowerThanGivenKey[level].getNext(level);
+                forwardPointerToSetForThisLevel =
+                        forwardPointerToSetForThisLevel != null && nodeToInsert.isKeyLowerThan(forwardPointerToSetForThisLevel.getKey())  // forward pointer cannot have key lower than node key
+                                ? forwardPointerToSetForThisLevel
+                                : null;
+                nodeToInsert.setNext(level, forwardPointerToSetForThisLevel);
                 rightmostNodesLowerThanGivenKey[level].setNext(level, nodeToInsert);
                 if (rightmostNodesLowerThanGivenKey[level] == rightmostNodes[level]/*compare object reference*/) {   // update rightmost nodes of list
                     rightmostNodes[level] = nodeToInsert;
@@ -354,13 +414,13 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
-     * @return a random level between 1 (included) and {@link #MAX_LEVEL} (included).
+     * @return a random level between 1 (included) and {@link #maxListLevel} (included).
      * The random level is generated without reference to the number of elements
      * currently present in the instance.
      */
     private int generateRandomLevel() {
         int randomLevelGenerated = 1;
-        while (Math.random() < P && randomLevelGenerated < MAX_LEVEL) {
+        while (Math.random() < P && randomLevelGenerated < maxListLevel) {
             randomLevelGenerated++;
         }
         return randomLevelGenerated;
@@ -547,7 +607,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
         SkipListMap<?, ?> that = (SkipListMap<?, ?>) o;
 
-        if (MAX_LEVEL != that.MAX_LEVEL) return false;
+        if (maxListLevel != that.maxListLevel) return false;
         if (Double.compare(that.P, P) != 0) return false;
         if (size != that.size) return false;
 
@@ -570,7 +630,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     public synchronized int hashCode() {
         int result;
         long temp;
-        result = MAX_LEVEL;
+        result = maxListLevel;
         temp = Double.doubleToLongBits(P);
         result = 31 * result + (int) (temp ^ (temp >>> 32));
         result = 31 * result + size;
@@ -583,7 +643,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @Override
     public void writeExternal(ObjectOutput out) throws IOException {
         out.writeObject(P);
-        out.writeObject(MAX_LEVEL);
+        out.writeObject(maxListLevel);
         out.writeObject(listLevel);
         out.writeObject(size);
         var it = new SkipListIterator<>(header);
@@ -600,7 +660,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         // Read in the same order they were written
         P = (double) in.readObject();
-        MAX_LEVEL = (int) in.readObject();
+        maxListLevel = (int) in.readObject();
         initList();
         listLevel = (int) in.readObject();
         var nElements = (int) in.readObject();
