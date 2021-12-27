@@ -77,16 +77,55 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * specific for this class, hence this is better for performance,
      * and does NOT alter any of the input parameters.
      *
-     * @param a One instance.
-     * @param b The other instance.
+     * @param lists The lists for which the union will be computed.
      * @return a new instance with the union of the given two.
      */
+    @SafeVarargs
     @NotNull
-    public static <T extends Comparable<T>> SkipList<T> union(
-            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
+    public static <T extends Comparable<T>> SkipList<T> union(@NotNull final SkipList<T>... lists) {
+
         SkipList<T> union = new SkipList<>();
-        union.addAll(a);
-        union.addAll(b);
+        if (lists.length == 0) {
+            return union;    // empty intersection
+        }
+        if (lists.length == 1) {
+            union.addAll(lists[0]);
+            return union;
+        }
+
+        var nodeFinders = Arrays.stream(lists)
+                .map(SkipList::getHeader)
+                .map(NodeFinder::new)
+                .toArray(NodeFinder[]::new);
+        var currentNodes = Arrays.stream(lists)
+                .map(SkipList::getFirstNodeOrNull)
+                .toArray(SkipListNode[]::new);
+
+        while (Arrays.stream(currentNodes).anyMatch(Objects::nonNull)) {
+
+            //noinspection ConstantConditions   // keys should be non-null
+            @SuppressWarnings("unchecked")
+            T minKey = (T) Arrays.stream(currentNodes)
+                    .filter(Objects::nonNull)
+                    .map(SkipListNode::getKey)
+                    .min(Comparable::compareTo)
+                    .orElse(null);
+            assert minKey != null;    // if at least one node is non-null, hence its key should not be null
+
+            SkipListNode<T, Object> lastAddedToUnion = null;
+            for (int i = 0; i < nodeFinders.length; i++) {
+                if (nodeFinders[i].findNextNode(minKey) != null) {
+                    currentNodes[i] = currentNodes[i].getNext(LOWEST_NODE_LEVEL_INCLUDED);
+                    //noinspection unchecked
+                    var nodeGoingToAddToUnion = (SkipListNode<T, Object>) nodeFinders[i].currentNode;
+                    if (!nodeGoingToAddToUnion.equals(lastAddedToUnion)) {
+                        union.skipListMap.copyNodeAndInsertAtEnd(nodeGoingToAddToUnion);
+                        lastAddedToUnion = nodeGoingToAddToUnion;
+                    }
+                }
+            }
+        }
+
         return union;
     }
 
@@ -151,7 +190,8 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
             return intersection;    // empty intersection
         }
         if (lists.length == 1) {
-            return lists[0];
+            intersection.addAll(lists[0]);
+            return intersection;
         }
 
         var nodeFinders = Arrays.stream(lists)

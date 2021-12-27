@@ -63,6 +63,21 @@ class SkipListTest {
     }
 
     @ParameterizedTest
+    @CsvSource({
+            ",,,",
+            "0,0,0,0",
+            "0_1_2_3,-1_0_2_5,-2_-1_0_2_3, -2_-1_0_1_2_3_5"
+    })
+    void unionVarargs(String l1AsStr, String l2AsStr, String l3AsStr, String expectedUnionAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        var l3 = createSkipListOfIntegersFromString(l3AsStr);
+        var expected = createSkipListOfIntegersFromString(expectedUnionAsStr);
+        var actual = SkipList.union(l1, l2, l3);
+        assertEquals(expected, actual);
+    }
+
+    @ParameterizedTest
     @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
     void merge(String l1AsStr, String l2AsStr, String ignored, String ignored2, String mergeAsStr) {
         var l1 = createSkipListOfIntegersFromString(l1AsStr);
