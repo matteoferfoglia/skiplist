@@ -135,6 +135,59 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     /**
+     * Computes the intersection of the instances passed as parameters without
+     * modifying them.
+     *
+     * @param <T>   The type of elements of the lists.
+     * @param lists Array of the instances to intersect.
+     * @return a new instance with the intersection of the given two.
+     */
+    @SafeVarargs
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> intersection(@NotNull final SkipList<T>... lists) {
+
+        SkipList<T> intersection = new SkipList<>();
+        if (lists.length == 0) {
+            return intersection;    // empty intersection
+        }
+        if (lists.length == 1) {
+            return lists[0];
+        }
+
+        var nodeFinders = Arrays.stream(lists)
+                .map(SkipList::getHeader)
+                .map(NodeFinder::new)
+                .toArray(NodeFinder[]::new);
+        var currentNodes = Arrays.stream(lists)
+                .map(SkipList::getFirstNodeOrNull)
+                .toArray(SkipListNode[]::new);
+
+        while (Arrays.stream(currentNodes).noneMatch(Objects::isNull)) {
+            assert Arrays.stream(currentNodes).map(SkipListNode::getKey).noneMatch(Objects::isNull);
+
+            //noinspection ConstantConditions   // keys should be non-null
+            @SuppressWarnings({"unchecked", "OptionalGetWithoutIsPresent"/*at least one element is present, hence a max is present for sure*/})
+            T maxKey = (T) Arrays.stream(currentNodes)
+                    .map(SkipListNode::getKey)
+                    .max(Comparable::compareTo)
+                    .get();
+
+            if (Arrays.stream(nodeFinders).allMatch(nodeFinder -> nodeFinder.findNextNode(maxKey) != null)) {
+                // node found in all lists
+                //noinspection unchecked
+                intersection.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) nodeFinders[0].currentNode);
+            }
+
+            // update nodes
+            currentNodes = Arrays.stream(nodeFinders).sequential()
+                    .map(nodeFinder -> nodeFinder.currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED))
+                    .toArray(SkipListNode[]::new);
+        }
+
+        return intersection;
+    }
+
+    /**
      * See {@link SkipListMap#setMaxListLevel(int)}.
      *
      * @param maxListLevel The new value for the maxListLevel.

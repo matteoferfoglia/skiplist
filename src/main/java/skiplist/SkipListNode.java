@@ -203,6 +203,21 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
 
     /**
      * @param key The key to be compared with the one of this instance.
+     * @return false if either the key of this instance or the given parameter
+     * are null, true if the key of this instance is lower or equals to the input key,
+     * false otherwise.
+     * @throws IllegalArgumentException if the type of the key is invalid.
+     * @throws ClassCastException       if the type of the given key cannot be
+     *                                  cast to the type of the key of this instance.
+     */
+    public boolean isKeyLowerOrEqualsTo(Object key) {
+        // exception is thrown if invalid cast
+        //noinspection unchecked
+        return getKey() != null && key != null && getKey().compareTo((K) key) <= 0;
+    }
+
+    /**
+     * @param key The key to be compared with the one of this instance.
      * @return true if the key (eventually null) of this instance is equal
      * to the input key, false otherwise. If both keys are null, this method
      * returns true.

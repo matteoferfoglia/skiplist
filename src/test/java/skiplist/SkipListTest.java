@@ -2,6 +2,7 @@ package skiplist;
 
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
+import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Arrays;
 import java.util.List;
@@ -43,6 +44,21 @@ class SkipListTest {
         var l2 = createSkipListOfIntegersFromString(l2AsStr);
         var expected = createSkipListOfIntegersFromString(intersectionAsStr);
         var actual = SkipList.intersection(l1, l2);
+        assertEquals(expected, actual);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            ",,,",
+            "0,0,0,0",
+            "0_1_2_3,-1_0_2_5,-2_-1_0_2_3, 0_2"
+    })
+    void intersectionVarargs(String l1AsStr, String l2AsStr, String l3AsStr, String expectedIntersectionAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        var l3 = createSkipListOfIntegersFromString(l3AsStr);
+        var expected = createSkipListOfIntegersFromString(expectedIntersectionAsStr);
+        var actual = SkipList.intersection(l1, l2, l3);
         assertEquals(expected, actual);
     }
 
