@@ -54,7 +54,7 @@ public class Main {
         System.out.println("l2:\t" + l2);
 
         System.out.println("union:\t" + SkipList.union(l1, l2));
-        System.out.println("intersection:\t" + SkipList.intersection(l1, l2));
+        System.out.println("intersection:\t" + SkipList.intersection2(l1, l2));
 
         SkipList<Integer> l3 = new SkipList<>();
         l3.addAll(Arrays.asList(1, 5, 3, 4, 6));

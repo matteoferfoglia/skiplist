@@ -86,7 +86,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
 
         SkipList<T> union = new SkipList<>();
         if (lists.length == 0) {
-            return union;    // empty intersection
+            return union;    // empty union
         }
         if (lists.length == 1) {
             union.addAll(lists[0]);
@@ -130,15 +130,15 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     /**
-     * Computes the intersection of the instances passed as parameters without
-     * modifying them.
+     * Computes the intersection of the two instances passed as parameters
+     * without modifying them.
      *
      * @param a One instance.
      * @param b The other instance.
      * @return a new instance with the intersection of the given two.
      */
     @NotNull
-    public static <T extends Comparable<T>> SkipList<T> intersection(
+    public static <T extends Comparable<T>> SkipList<T> intersection2(
             @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
 
         SkipList<T> intersection = new SkipList<>();

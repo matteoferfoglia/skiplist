@@ -43,7 +43,7 @@ class SkipListTest {
         var l1 = createSkipListOfIntegersFromString(l1AsStr);
         var l2 = createSkipListOfIntegersFromString(l2AsStr);
         var expected = createSkipListOfIntegersFromString(intersectionAsStr);
-        var actual = SkipList.intersection(l1, l2);
+        var actual = SkipList.intersection2(l1, l2);
         assertEquals(expected, actual);
     }
 
