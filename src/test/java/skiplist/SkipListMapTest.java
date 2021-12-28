@@ -309,4 +309,42 @@ class SkipListMapTest {
                 });
         assertEquals(initialEntries.size(), skipListMap.size());
     }
+
+    @Test
+    void equalSkipListMapsHaveSameHashCodeWithEmptyInstances() {
+        var skipListMap1 = new SkipListMap<>();
+        var skipListMap2 = new SkipListMap<>();
+        assert skipListMap1.equals(skipListMap2);
+        assertEquals(skipListMap1.hashCode(), skipListMap2.hashCode());
+    }
+
+    @Test
+    void equalSkipListMapsHaveSameHashCodeWithNonEmptyInstances() {
+        SkipListMap<Integer, Integer> skipListMap1 = new SkipListMap<>();
+        SkipListMap<Integer, Integer> skipListMap2 = new SkipListMap<>();
+        skipListMap1.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
+        skipListMap2.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
+        assert !skipListMap1.isEmpty();
+        assertNotEquals(0, skipListMap1.size());
+        assert skipListMap1.equals(skipListMap2);
+        assertEquals(skipListMap1.hashCode(), skipListMap2.hashCode());
+    }
+
+    @Test
+    void hashCodeChangesAfterRemovingNode() {
+        SkipListMap<Integer, Integer> skipListMap1 = new SkipListMap<>();
+        SkipListMap<Integer, Integer> skipListMap2 = new SkipListMap<>();
+        skipListMap1.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
+        skipListMap2.putAll(MAP_OF_NODES_TO_ADD_IN_TESTS);
+        assert !skipListMap1.isEmpty();
+        assert skipListMap1.hashCode() == skipListMap2.hashCode();
+
+        var keyPresentForSure = 0;
+        assert skipListMap1.containsKey(keyPresentForSure);
+        var value = skipListMap1.remove(keyPresentForSure);
+        assertNotEquals(skipListMap1.hashCode(), skipListMap2.hashCode());
+
+        skipListMap1.put(keyPresentForSure, value);
+        assertEquals(skipListMap1.hashCode(), skipListMap2.hashCode());
+    }
 }

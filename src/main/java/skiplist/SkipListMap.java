@@ -60,6 +60,13 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     private int maxListLevel;
 
     /**
+     * The hashCode for this instance.
+     * This fields caches the hashCode for the instance, in this
+     * way the value is immediately available.
+     */
+    private int hashCode = 0;
+
+    /**
      * The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
     private double P;
@@ -132,6 +139,10 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      */
     public SkipListMap() {
         this(DEFAULT_MAX_LEVEL, DEFAULT_P);
+    }
+
+    private static <K, V> int hashCode(K key, V value) {
+        return 31 * Objects.hashCode(key) + Objects.hashCode(value);
     }
 
     /**
@@ -377,6 +388,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         if (nodeEventuallyAlreadyPresent != null) {
             oldValue = nodeEventuallyAlreadyPresent.getValue();
             nodeEventuallyAlreadyPresent.setValue(value);
+            hashCode -= hashCode(key, oldValue);
         } else {
             // oldValue is null by default because the node at the specified key was not present.
             var randomLevel = generateRandomLevel();    // the level for the new node
@@ -397,6 +409,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                 }
             }
             size++;
+            hashCode += hashCode(key, value);
         }
         return oldValue;
     }
@@ -454,6 +467,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             oldValue = nodeToRemove.getValue();
             // here the node is out of the list and memory can be free (in Java: garbage collector)
             size--;
+            hashCode -= hashCode(key, oldValue);
 
             while (listLevel > 0 && header.getNext(listLevel - 1/*indexes start from 0 in Java, hence '-1'*/) == null) {
                 listLevel--;
@@ -626,7 +640,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Override
     public int hashCode() {
-        return 31 * size + entrySet().stream().unordered().mapToInt(Entry::hashCode).sum();
+        return hashCode;
     }
 
     @Override
