@@ -29,7 +29,7 @@ class SkipListTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
-    void union(String l1AsStr, String l2AsStr, String unionAsStr) {
+    void unionWith2InputLists(String l1AsStr, String l2AsStr, String unionAsStr) {
         var l1 = createSkipListOfIntegersFromString(l1AsStr);
         var l2 = createSkipListOfIntegersFromString(l2AsStr);
         var expected = createSkipListOfIntegersFromString(unionAsStr);
@@ -39,11 +39,11 @@ class SkipListTest {
 
     @ParameterizedTest
     @CsvFileSource(resources = RESOURCE_FILE_PATH, numLinesToSkip = 1)
-    void intersection(String l1AsStr, String l2AsStr, String ignored, String intersectionAsStr) {
+    void intersectionWith2InputLists(String l1AsStr, String l2AsStr, String ignored, String intersectionAsStr) {
         var l1 = createSkipListOfIntegersFromString(l1AsStr);
         var l2 = createSkipListOfIntegersFromString(l2AsStr);
         var expected = createSkipListOfIntegersFromString(intersectionAsStr);
-        var actual = SkipList.intersection2(l1, l2);
+        var actual = SkipList.intersection(l1, l2);
         assertEquals(expected, actual);
     }
 

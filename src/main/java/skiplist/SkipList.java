@@ -7,7 +7,7 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.*;
 
-import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
+import static skiplist.SkipListMap.*;
 
 /**
  * Implementation of a SkipList, using the keySet of a {@link SkipListMap}.
@@ -67,6 +67,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(@NotNull final Collection<T> collection) {
         skipListMap = new SkipListMap<>();
+        setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(collection.size(), SkipListMap.DEFAULT_P));
         addAll(Objects.requireNonNull(collection));
     }
 
@@ -84,14 +85,18 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> union(@NotNull final SkipList<T>... lists) {
 
+        switch (lists.length) {
+            case 0:
+                return new SkipList<>();  // empty union
+            case 1:
+                return new SkipList<>(lists[0]);
+            case 2:
+                return union2(lists[0], lists[1]);
+            default:
+                break; // continue with this method
+        }
+
         SkipList<T> union = new SkipList<>();
-        if (lists.length == 0) {
-            return union;    // empty union
-        }
-        if (lists.length == 1) {
-            union.addAll(lists[0]);
-            return union;
-        }
 
         var nodeFinders = Arrays.stream(lists)
                 .map(SkipList::getHeader)
@@ -138,7 +143,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * @return a new instance with the intersection of the given two.
      */
     @NotNull
-    public static <T extends Comparable<T>> SkipList<T> intersection2(
+    private static <T extends Comparable<T>> SkipList<T> intersection2(
             @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
 
         SkipList<T> intersection = new SkipList<>();
@@ -174,6 +179,57 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     /**
+     * Computes the union of the two instances passed as parameters
+     * without modifying them.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the union of the given two.
+     */
+    @NotNull
+    private static <T extends Comparable<T>> SkipList<T> union2(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
+
+        SkipList<T> union = new SkipList<>(
+                getBestMaxListLevelAccordingToExpectedSize(a.size() + b.size(), DEFAULT_P));
+
+        var currentA = a.getFirstNodeOrNull();
+        var currentB = b.getFirstNodeOrNull();
+
+        while (currentA != null && currentB != null) {
+            assert currentA.getKey() != null;
+            assert currentB.getKey() != null;
+            var comparison = currentA.getKey().compareTo(currentB.getKey());
+            if (comparison == 0) {
+                //noinspection unchecked    // only keys matter for SkipList
+                union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+                currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+            } else if (comparison < 0) {
+                //noinspection unchecked
+                union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+            } else {
+                //noinspection unchecked
+                union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentB);
+                currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+            }
+        }
+        while (currentA != null) {    // add missing nodes from listA
+            //noinspection unchecked
+            union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+            currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+        }
+        while (currentB != null) {    // add missing nodes from listB
+            //noinspection unchecked
+            union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentB);
+            currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+        }
+
+        return union;
+    }
+
+    /**
      * Computes the intersection of the instances passed as parameters without
      * modifying them.
      *
@@ -185,14 +241,18 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> intersection(@NotNull final SkipList<T>... lists) {
 
+        switch (lists.length) {
+            case 0:
+                return new SkipList<>();  // empty intersection
+            case 1:
+                return new SkipList<>(lists[0]);
+            case 2:
+                return intersection2(lists[0], lists[1]);
+            default:
+                break; // continue with this method
+        }
+
         SkipList<T> intersection = new SkipList<>();
-        if (lists.length == 0) {
-            return intersection;    // empty intersection
-        }
-        if (lists.length == 1) {
-            intersection.addAll(lists[0]);
-            return intersection;
-        }
 
         var nodeFinders = Arrays.stream(lists)
                 .map(SkipList::getHeader)

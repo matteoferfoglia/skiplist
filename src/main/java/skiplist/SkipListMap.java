@@ -32,17 +32,14 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * The minimum value for the level, suitable as index.
      */
     static final int LOWEST_NODE_LEVEL_INCLUDED = 0;
-
+    /**
+     * The default fraction of the nodes with level i pointers that also have level i+1 pointers.
+     */
+    static final double DEFAULT_P = 1.0 / 2;
     /**
      * The default maximum value for {@link #maxListLevel}.
      */
     private static final int DEFAULT_MAX_LEVEL = 16;
-
-    /**
-     * The default fraction of the nodes with level i pointers that also have level i+1 pointers.
-     */
-    private static final double DEFAULT_P = 1.0 / 2;
-
     /**
      * The minimum value (excluded) for {@link #P}.
      */
@@ -146,6 +143,24 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
+     * @param expectedSize The expected size for an instance of this class.
+     * @param P            The {@link #P} parameter value for the instance.
+     * @return the best value for {@link  #maxListLevel} according to some heuristics.
+     */
+    static int getBestMaxListLevelAccordingToExpectedSize(int expectedSize, double P) {
+        return Math.max(MIN_ALLOWED_LIST_LEVEL, (int) Math.round(log(1 / P, expectedSize)));
+    }
+
+    /**
+     * @param base The base of the logarithm.
+     * @param n    The argument for the logarithm.
+     * @return the log in the specified base of the given value.
+     */
+    private static double log(double base, int n) {
+        return Math.log(n) / Math.log(base);
+    }
+
+    /**
      * Initializes fields of this class.
      */
     private synchronized void initList() {
@@ -212,17 +227,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @return this instance after having updated the {@link #maxListLevel}.
      */
     public SkipListMap<K, V> setMaxListLevel() {
-        return setMaxListLevel(
-                Math.max(MIN_ALLOWED_LIST_LEVEL, (int) Math.round(log(1 / P, size))));
-    }
-
-    /**
-     * @param base The base of the logarithm.
-     * @param n    The argument for the logarithm.
-     * @return the log in the specified base of the given value.
-     */
-    private double log(double base, int n) {
-        return Math.log(n) / Math.log(base);
+        return setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(size, P));
     }
 
     @Nullable
@@ -486,12 +491,18 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      *             the end of this instance.
      */
     void copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) {
-        var nodeToInsert = new SkipListNode<>(node);
-        for (int level = 0; level < node.getLevel(); level++) {   // update pointers (actual insertion is here)
+        var newLevelForNode = generateRandomLevel();    // nodeLevel is correlated with listLevel
+        var nodeToInsert = new SkipListNode<>(node, newLevelForNode);
+        if (newLevelForNode > listLevel) {
+            listLevel = newLevelForNode;    // update the level of the list if the new node to insert has a level higher than the current level list
+        }
+        assert nodeToInsert.getLevel() <= maxListLevel && nodeToInsert.getLevel() <= listLevel;
+        for (int level = 0; level < newLevelForNode; level++) {   // update pointers (actual insertion is here)
             nodeToInsert.setNext(level, null/*node is added at the end of the list, there are no more nodes following this one*/);
             rightmostNodes[level].setNext(level, nodeToInsert);
             rightmostNodes[level] = nodeToInsert;
         }
+        hashCode += hashCode(node.getKey(), node.getValue());
         size++;
     }
 
