@@ -13,10 +13,10 @@ import java.util.stream.IntStream;
  * @author Matteo Ferfoglia
  */
 @SuppressWarnings("ResultOfMethodCallIgnored")
-public class Main {
+public class ExampleOfUse {
 
     /**
-     * Main method.
+     * ExampleOfUse method.
      *
      * @param args Command-line args
      */
