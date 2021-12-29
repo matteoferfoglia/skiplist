@@ -148,7 +148,7 @@ class SkipListMapTest {
             var node = new NodeFinder<>(skipListMap.getHeader()).findNextNode(key);
             assertNotNull(node);
             assertEquals(key, node.getKey());
-            assertEquals(value, node.getValue());
+            assertEquals(value, skipListMap.get(key));
         });
     }
 
@@ -161,7 +161,7 @@ class SkipListMapTest {
             var node = new NodeFinder<>(skipListMap.getHeader()).findNextNode(key);
             assertNotNull(node);
             assertEquals(key, node.getKey());
-            assertNull(node.getValue());
+            assertNull(skipListMap.get(key));
         });
     }
 
@@ -311,6 +311,7 @@ class SkipListMapTest {
     }
 
     @Test
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")
     void equalSkipListMapsHaveSameHashCodeWithEmptyInstances() {
         var skipListMap1 = new SkipListMap<>();
         var skipListMap2 = new SkipListMap<>();

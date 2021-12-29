@@ -5,21 +5,20 @@ import org.jetbrains.annotations.Nullable;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
 /**
  * An instance of this class represents a node of {@link SkipListMap}.
- * Each node has a key and a corresponding value.
+ * Each node has a key and forward pointers to other keys of the {@link SkipListMap}
+ * to which this node belongs.
  *
  * @param <K> The type of the key.
- * @param <V> The type of the value.
  * @author Matteo Ferfoglia.
  */
 @SuppressWarnings("UnusedReturnValue")
 // returned values of some methods are not used in project, but they can be useful
-public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V> {
+public class SkipListNode<K extends Comparable<K>> {
 
     /**
      * The minimum value allowed for the level of the node.
@@ -40,28 +39,21 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      * has i forward pointers, indexed 0 through i-1.
      */
     @Nullable   // inner elements can be null
-    private final SkipListNode<K, V>[] forwardPointers;
-    /**
-     * The value contained in this element.
-     */
-    @Nullable
-    private V value;
+    private final SkipListNode<K>[] forwardPointers;
 
     /**
      * Creates a new instance of this class.
      *
      * @param key   The key of this instance.
-     * @param value The value of this instance
      * @param level The level of this node.
      */
-    public SkipListNode(@Nullable final K key, @Nullable V value, int level) {
+    public SkipListNode(@Nullable final K key, int level) {
         if (level < MINIMUM_VALID_LEVEL_INCLUDED) {
             throw new IllegalArgumentException("The node level must be at least " + MINIMUM_VALID_LEVEL_INCLUDED);
         }
         this.key = key;
-        this.value = value;
         //noinspection unchecked    // generic array creation
-        this.forwardPointers = (SkipListNode<K, V>[]) new SkipListNode[level];
+        this.forwardPointers = (SkipListNode<K>[]) new SkipListNode[level];
     }
 
     /**
@@ -72,18 +64,15 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      * @param skipListNode The node to be copied.
      * @param nodeLevel    The new level for the node.
      */
-    public SkipListNode(@NotNull SkipListNode<K, V> skipListNode, int nodeLevel) {
+    public SkipListNode(@NotNull SkipListNode<K> skipListNode, int nodeLevel) {
         this.key = skipListNode.key;
-        this.value = skipListNode.value;
         //noinspection unchecked    // generic array creation
-        this.forwardPointers = (SkipListNode<K, V>[]) new SkipListNode[nodeLevel];
+        this.forwardPointers = (SkipListNode<K>[]) new SkipListNode[nodeLevel];
     }
 
     @Override
     public String toString() {
-        return "{key: " + key
-                + ", value: " + value
-                + ", forwardsToKeys: " + getForwardPointersKeys() + "}";
+        return "{key: " + key + ", forwardsToKeys: " + getForwardPointersKeys() + "}";
     }
 
     /**
@@ -98,16 +87,9 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
                 .collect(Collectors.toList());
     }
 
-    @Override
     @Nullable
     public K getKey() {
         return key;
-    }
-
-    @Override
-    @Nullable
-    public V getValue() {
-        return value;
     }
 
     /**
@@ -134,8 +116,8 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      * @throws IndexOutOfBoundsException If invalid level is given.
      */
     @Nullable
-    private SkipListNode<K, V> checkValidInputLevelBeforeGetOrSet(
-            int level, boolean getter, @Nullable SkipListNode<K, V> newValueIfSetterMustBeInvoked)
+    private SkipListNode<K> checkValidInputLevelBeforeGetOrSet(
+            int level, boolean getter, @Nullable SkipListNode<K> newValueIfSetterMustBeInvoked)
             throws IndexOutOfBoundsException {
 
         if (0 <= level && level < getLevel()) {
@@ -158,7 +140,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      * @return The forward pointer (eventually null if not set) for the given level.
      */
     @Nullable
-    public SkipListNode<K, V> getNext(final int level) {
+    public SkipListNode<K> getNext(final int level) {
         return checkValidInputLevelBeforeGetOrSet(level, true, null);
     }
 
@@ -168,20 +150,13 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      * @return The old forward pointer at the given level.
      */
     @Nullable
-    public SkipListNode<K, V> setNext(int level, @Nullable SkipListNode<K, V> newForwardPointerAtLevel) {
+    public SkipListNode<K> setNext(int level, @Nullable SkipListNode<K> newForwardPointerAtLevel) {
 
         // assert the forward pointer key is greater than this.key
         assert newForwardPointerAtLevel == null
                 || (newForwardPointerAtLevel.key != null
                 && (this.key == null || newForwardPointerAtLevel.key.compareTo(this.key) > 0));
         return checkValidInputLevelBeforeGetOrSet(level, false, newForwardPointerAtLevel);
-    }
-
-    @Override
-    public V setValue(@Nullable V value) {
-        V oldValue = this.value;
-        this.value = value;
-        return oldValue;
     }
 
     /**
@@ -228,18 +203,15 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
     }
 
     /**
-     * Two instance of this class are considered equals if both their
-     * {@link #key}s and {@link #value}s are equals.
+     * Two instance of this class are considered equals if their
+     * {@link #key}s are equals.
      */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-
-        SkipListNode<?, ?> that = (SkipListNode<?, ?>) o;
-
-        if (!Objects.equals(key, that.key)) return false;
-        return Objects.equals(value, that.value);
+        SkipListNode<?> that = (SkipListNode<?>) o;
+        return Objects.equals(key, that.key);
     }
 
     @Override

@@ -24,12 +24,12 @@ public class SkipListIterator<K extends Comparable<K>, V> implements Iterator<K>
      * The current node pointed by this instance.
      */
     @Nullable
-    private SkipListNode<K, V> currentNode;
+    private SkipListNode<K> currentNode;
     /**
      * The next node pointed by this instance.
      */
     @Nullable
-    private SkipListNode<K, V> nextNode;
+    private SkipListNode<K> nextNode;
 
     /**
      * Constructs an iterator where iterations start from the
@@ -42,7 +42,7 @@ public class SkipListIterator<K extends Comparable<K>, V> implements Iterator<K>
      *                             such that iterations start from the node following
      *                             the given one.
      */
-    public SkipListIterator(@Nullable SkipListNode<K, V> startingNodeExcluded) {
+    public SkipListIterator(@Nullable SkipListNode<K> startingNodeExcluded) {
         this.currentNode = startingNodeExcluded;
         this.nextNode = startingNodeExcluded == null ? null : startingNodeExcluded.getNext(LOWEST_NODE_LEVEL_INDEX);
     }
@@ -73,7 +73,7 @@ public class SkipListIterator<K extends Comparable<K>, V> implements Iterator<K>
      * @throws NoSuchElementException if no more elements are available.
      */
     @NotNull
-    public SkipListNode<K, V> nextNode() {
+    public SkipListNode<K> nextNode() {
         next();
         assert currentNode != null; // next() should throw if no more elements are available
         return currentNode;

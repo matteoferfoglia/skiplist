@@ -11,37 +11,37 @@ import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
 /**
  * Class to find a node by key exploiting the known order and the forward pointers.
  */
-class NodeFinder<K extends Comparable<K>, V> {
+class NodeFinder<K extends Comparable<K>> {
 
     /**
      * The array of the rightmost {@link SkipListNode}s in the list whose
      * keys are strictly lower than the given one.
      */
     @NotNull
-    final SkipListNode<K, V>[] rightmostNodes;
+    final SkipListNode<K>[] rightmostNodes;
     /**
      * The header of the {@link SkipListMap} to which this instance refers to.
      */
     @NotNull
     final
-    SkipListNode<K, V> header;
+    SkipListNode<K> header;
     /**
      * The current node, initialized with {@link #header} at the search of the search.
      */
     @NotNull
-    SkipListNode<K, V> currentNode;
+    SkipListNode<K> currentNode;
 
     /**
      * Constructor.
      */
-    NodeFinder(@NotNull SkipListNode<K, V> header) {
+    NodeFinder(@NotNull SkipListNode<K> header) {
         this.header = Objects.requireNonNull(header);
         this.currentNode = header;
 
         // generic array creation
         //noinspection unchecked
         this.rightmostNodes =
-                (SkipListNode<K, V>[]) Collections.nCopies(header.getLevel(), header).toArray(new SkipListNode[0]);
+                (SkipListNode<K>[]) Collections.nCopies(header.getLevel(), header).toArray(new SkipListNode[0]);
     }
 
     /**
@@ -55,7 +55,7 @@ class NodeFinder<K extends Comparable<K>, V> {
      * @return The found node for the given key or null if not found.
      */
     @Nullable
-    public SkipListNode<K, V> findNextNode(@NotNull Object key) {
+    public SkipListNode<K> findNextNode(@NotNull Object key) {
         //noinspection ConstantConditions   // one more assert is better than one less
         assert key != null;
         assert !key.equals(currentNode.getKey());
@@ -69,7 +69,7 @@ class NodeFinder<K extends Comparable<K>, V> {
              * will be examined, or null if there will not be any next node (if
              * end of list is reached).
              */
-            @Nullable SkipListNode<K, V> nextNode;
+            @Nullable SkipListNode<K> nextNode;
             while ((nextNode = currentNode.getNext(level)) != null && nextNode.isKeyLowerThan(key)) {
                 currentNode = nextNode;
             }
@@ -96,7 +96,7 @@ class NodeFinder<K extends Comparable<K>, V> {
      * @param node The node of interest.
      * @return true if the given key results lower or equal to the key of the given node.
      */
-    private boolean isKeyLowerOrEqualToKeyOfNode(Object key, SkipListNode<K, V> node) {
+    private boolean isKeyLowerOrEqualToKeyOfNode(Object key, SkipListNode<K> node) {
         // method created only to check an assertion
         Comparable<K> keyOfNode;
         //noinspection unchecked

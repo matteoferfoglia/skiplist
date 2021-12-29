@@ -9,6 +9,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -57,21 +58,9 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     private int maxListLevel;
 
     /**
-     * The hashCode for this instance.
-     * This fields caches the hashCode for the instance, in this
-     * way the value is immediately available.
-     */
-    private int hashCode = 0;
-
-    /**
      * The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
     private double P;
-
-    /**
-     * The number of elements in this list.
-     */
-    private int size = 0;
 
     /**
      * Level of the list (see description of {@link #getListLevel()}).
@@ -83,15 +72,22 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * The forward pointers of the header at levels higher than the current maximum level of
      * the list points to null.
      */
-    @SuppressWarnings("NotNullFieldNotInitialized") // initialized by initList method invoked by constructor
+    @SuppressWarnings("NotNullFieldNotInitialized") // initialized by initInstance method invoked by constructor
     @NotNull
-    private SkipListNode<K, V> header;
+    private SkipListNode<K> header;
+
+    /**
+     * The actual data-structure where data are saved.
+     */
+    @SuppressWarnings("NotNullFieldNotInitialized") // initialized by initInstance method invoked by constructor
+    @NotNull
+    private HashMap<K, V> actualDataStructure;
 
     /**
      * Rightmost non-null nodes of this instance.
      */
     @NotNull
-    private SkipListNode<K, V>[] rightmostNodes;
+    private SkipListNode<K>[] rightmostNodes;
 
     /**
      * Constructor.
@@ -103,8 +99,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         if (MIN_ALLOWED_LIST_LEVEL <= maxListLevel && MIN_P_EXCLUDED < P && P <= MAX_P_INCLUDED) {
             this.maxListLevel = maxListLevel;
             this.P = P;
-            initList();
-            assert size == 0;
+            initInstance();
+            assert size() == 0;
             assert listLevel == 0;
         } else {
             throw new IllegalArgumentException(
@@ -138,10 +134,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         this(DEFAULT_MAX_LEVEL, DEFAULT_P);
     }
 
-    private static <K, V> int hashCode(K key, V value) {
-        return 31 * Objects.hashCode(key) + Objects.hashCode(value);
-    }
-
     /**
      * @param expectedSize The expected size for an instance of this class.
      * @param P            The {@link #P} parameter value for the instance.
@@ -163,12 +155,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     /**
      * Initializes fields of this class.
      */
-    private synchronized void initList() {
-        header = new SkipListNode<>(null, null, maxListLevel);
+    private synchronized void initInstance() {
+        actualDataStructure = new HashMap<>();
+        header = new SkipListNode<>((K) null, maxListLevel);
         //noinspection unchecked    // generic array creation
         rightmostNodes = Collections.nCopies(maxListLevel, header).toArray(new SkipListNode[0]);
         listLevel = 0;
-        size = 0;
     }
 
     /**
@@ -212,7 +204,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             this.maxListLevel = maxListLevel;
             SkipListMap<K, V> tmp = new SkipListMap<>();
             tmp.putAll(this);
-            initList();
+            initInstance();
             putAll(tmp);
         }
         return this;
@@ -227,7 +219,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @return this instance after having updated the {@link #maxListLevel}.
      */
     public SkipListMap<K, V> setMaxListLevel() {
-        return setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(size, P));
+        return setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(size(), P));
     }
 
     @Nullable
@@ -256,28 +248,31 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @NotNull
     private synchronized SkipListMap<K, V> subMapLastIncluded(@NotNull K fromKey, @NotNull K toKey, boolean lastIncluded) {
         SkipListMap<K, V> subMap = new SkipListMap<>(P);
-        var nextNode = findNode(fromKey);
-
-        final Predicate<SkipListNode<K, V>> toAdd = node -> {
+        var nodeFinder = new NodeFinder<>(header);
+        var nextNode = nodeFinder.findNextNode(fromKey);
+        final Predicate<SkipListNode<K>> toAdd = node -> {
             if (node == null) return false;
             assert node.getKey() != null;
             var comparison = node.getKey().compareTo(toKey);
             return lastIncluded ? comparison <= 0 : comparison < 0;
         };
+        final Function<SkipListNode<K>, Boolean> putNodeAndReturnFalseIfNoMoreNodeMustBeAdded = node -> {
+            assert node != null && node.getKey() != null;
+            boolean shouldAdd = toAdd.test(node);
+            if (shouldAdd) {
+                var key = node.getKey();
+                subMap.put(key, actualDataStructure.get(key));
+            }
+            return shouldAdd;
+        };
 
-        assert nextNode == null || nextNode.getKey() != null;
-        if (toAdd.test(nextNode)) {
-            assert nextNode != null;
-            subMap.put(nextNode);
-        }
+        putNodeAndReturnFalseIfNoMoreNodeMustBeAdded.apply(nextNode);
 
         var skipListIterator = new SkipListIterator<>(nextNode);
         while (skipListIterator.hasNext()) {
             nextNode = skipListIterator.nextNode();
             assert nextNode.getKey() != null;
-            if (toAdd.test(nextNode)) {
-                subMap.put(nextNode);
-            } else {
+            if (!putNodeAndReturnFalseIfNoMoreNodeMustBeAdded.apply(nextNode)) {
                 break;  // list is sorted: if here, no more node have to be added in the sublist
             }
         }
@@ -300,7 +295,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @NotNull
     @Override
     public synchronized K firstKey() {   // implicitly tested with tailMap(..) / headMap(..)
-        if (size == 0) {
+        if (size() == 0) {
             throw new NoSuchElementException();
         } else {
             final int FIRST_NODE_LEVEL_INDEX = 0;
@@ -325,7 +320,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
     @Override
     public synchronized int size() {
-        return size;
+        return actualDataStructure.size();
     }
 
     @Override
@@ -347,8 +342,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @Nullable
     @Override
     public synchronized V get(Object key) {
-        var node = findNode(key);
-        return node == null ? null : node.getValue();
+        return actualDataStructure.get(key);
     }
 
     /**
@@ -356,7 +350,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @return The found node for the given key or null if not found.
      */
     @Nullable
-    private synchronized SkipListNode<K, V> findNode(@NotNull Object key) {
+    private synchronized SkipListNode<K> findNode(@NotNull Object key) {
         var nodeFinder = new NodeFinder<>(header);
         return nodeFinder.findNextNode(key);
     }
@@ -385,22 +379,21 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @return the old value corresponding to the given key.
      */
     @Nullable
-    private synchronized V put(@NotNull K key, V value, @NotNull NodeFinder<K, V> nodeFinder) {
+    private synchronized V put(@NotNull K key, V value, @NotNull NodeFinder<K> nodeFinder) {
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.findNextNode(key);
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
         if (nodeEventuallyAlreadyPresent != null) {
-            oldValue = nodeEventuallyAlreadyPresent.getValue();
-            nodeEventuallyAlreadyPresent.setValue(value);
-            hashCode -= hashCode(key, oldValue);
+            oldValue = actualDataStructure.replace(key, value);
         } else {
             // oldValue is null by default because the node at the specified key was not present.
             var randomLevel = generateRandomLevel();    // the level for the new node
             if (randomLevel > listLevel) {
                 listLevel = randomLevel;    // update the level of the list if the new node to insert has a level higher than the current level list
             }
-            var nodeToInsert = new SkipListNode<>(key, value, randomLevel);
+            actualDataStructure.put(key, value);
+            var nodeToInsert = new SkipListNode<>(key, randomLevel);
             for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
                 var forwardPointerToSetForThisLevel = rightmostNodesLowerThanGivenKey[level].getNext(level);
                 forwardPointerToSetForThisLevel =
@@ -413,22 +406,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                     rightmostNodes[level] = nodeToInsert;
                 }
             }
-            size++;
-            hashCode += hashCode(key, value);
         }
         return oldValue;
-    }
-
-    /**
-     * Like {@link #put(Comparable, Object)}, but allows to add a node
-     * specifying the node instead of key and value separately.
-     *
-     * @param node The node to add to this instance.
-     * @return the previous value associated with key, or null if there
-     * was no mapping for key.
-     */
-    public synchronized V put(@NotNull SkipListNode<K, V> node) {
-        return put(Objects.requireNonNull(node.getKey()), node.getValue());
     }
 
     /**
@@ -448,11 +427,15 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @Override
     public synchronized V remove(@NotNull Object key) {
 
+        var oldValue = actualDataStructure.remove(key);
+        if (oldValue == null) {    // node was not present
+            return null;
+        }
+
         @NotNull var nodeFinder = new NodeFinder<>(header);
         @Nullable var nodeToRemove = nodeFinder.findNextNode(key);
         @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
-        V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
         if (nodeToRemove != null /*node found*/) {
 
             for (int level = 0; level < listLevel; level++) {   // update pointers (actual deletion is here)
@@ -469,10 +452,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                     }
                 }
             }
-            oldValue = nodeToRemove.getValue();
             // here the node is out of the list and memory can be free (in Java: garbage collector)
-            size--;
-            hashCode -= hashCode(key, oldValue);
 
             while (listLevel > 0 && header.getNext(listLevel - 1/*indexes start from 0 in Java, hence '-1'*/) == null) {
                 listLevel--;
@@ -484,31 +464,36 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
-     * Creates a copy of the given node and inserts it at the end of this instance,
+     * Creates a node and inserts it at the end of this instance,
      * without checking the order, which is a programmer's responsibility.
      *
-     * @param node The node to be copied and whose copy has to be inserted at
-     *             the end of this instance.
+     * @param key   The key.
+     * @param value The value.
      */
-    void copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) {
-        var newLevelForNode = generateRandomLevel();    // nodeLevel is correlated with listLevel
-        var nodeToInsert = new SkipListNode<>(node, newLevelForNode);
-        if (newLevelForNode > listLevel) {
-            listLevel = newLevelForNode;    // update the level of the list if the new node to insert has a level higher than the current level list
+    void insertNodeAtEnd(@NotNull K key, @Nullable V value) {
+        assert !actualDataStructure.containsKey(key);
+        var previousValue = actualDataStructure.put(key, value);
+        if (previousValue != null) {    // if the key was already present, the previous state must be restored
+            actualDataStructure.put(key, previousValue);
+            throw new IllegalStateException("The key " + key + " was already present. No change were made.");
+        } else {
+            var newLevelForNode = generateRandomLevel();    // nodeLevel is correlated with listLevel
+            var nodeToInsert = new SkipListNode<>(key, newLevelForNode);
+            if (newLevelForNode > listLevel) {
+                listLevel = newLevelForNode;    // update the level of the list if the new node to insert has a level higher than the current level list
+            }
+            assert nodeToInsert.getLevel() <= maxListLevel && nodeToInsert.getLevel() <= listLevel;
+            for (int level = 0; level < newLevelForNode; level++) {   // update pointers (actual insertion is here)
+                nodeToInsert.setNext(level, null/*node is added at the end of the list, there are no more nodes following this one*/);
+                rightmostNodes[level].setNext(level, nodeToInsert);
+                rightmostNodes[level] = nodeToInsert;
+            }
         }
-        assert nodeToInsert.getLevel() <= maxListLevel && nodeToInsert.getLevel() <= listLevel;
-        for (int level = 0; level < newLevelForNode; level++) {   // update pointers (actual insertion is here)
-            nodeToInsert.setNext(level, null/*node is added at the end of the list, there are no more nodes following this one*/);
-            rightmostNodes[level].setNext(level, nodeToInsert);
-            rightmostNodes[level] = nodeToInsert;
-        }
-        hashCode += hashCode(node.getKey(), node.getValue());
-        size++;
     }
 
     @Override
     public synchronized void clear() {
-        initList();
+        initInstance();
     }
 
     @Override
@@ -550,7 +535,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * Getter for the {@link #header}.
      */
     @NotNull
-    SkipListNode<K, V> getHeader() {
+    SkipListNode<K> getHeader() {
         return header;
     }
 
@@ -559,7 +544,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         StringBuilder sb = new StringBuilder(
                 "SkipListMap{" +
                         "P=" + P +
-                        ", size=" + size +
+                        ", size=" + size() +
                         ", listLevel=" + listLevel +
                         ", header=" + header +
                         ", \n\tnodes=[");
@@ -587,23 +572,13 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @NotNull
     @Override
     public synchronized Collection<V> values() {
-        List<V> values = new ArrayList<>();
-        var iterator = new SkipListIterator<>(header);
-        while (iterator.hasNext()) {
-            values.add(iterator.nextNode().getValue());
-        }
-        return values;
+        return actualDataStructure.values();
     }
 
     @NotNull
     @Override
     public synchronized Set<Entry<K, V>> entrySet() {
-        Set<Entry<K, V>> entrySet = new ConcurrentSkipListSet<>(Entry.comparingByKey());
-        var iterator = new SkipListIterator<>(header);
-        while (iterator.hasNext()) {
-            entrySet.add(iterator.nextNode());
-        }
-        return entrySet;
+        return actualDataStructure.entrySet();
     }
 
     @NotNull
@@ -617,7 +592,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * header) or null if this instance is empty.
      */
     @Nullable
-    synchronized SkipListNode<K, V> getFirstNodeOrNull() {
+    synchronized SkipListNode<K> getFirstNodeOrNull() {
         return isEmpty() ? null : header.getNext(LOWEST_NODE_LEVEL_INCLUDED);
     }
 
@@ -629,29 +604,14 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
-
         SkipListMap<?, ?> that = (SkipListMap<?, ?>) o;
-
-        if (size != that.size) return false;
-
-        boolean equal = true;
-        var nodeFinderThis = new NodeFinder<>(header);
-        var nodeFinderThat = new NodeFinder<>(that.header);
-        for (var key : this) {
-            var nextNode = nodeFinderThis.findNextNode(key);
-            if (nextNode == null) {
-                break;
-            } else {
-                equal = equal && nextNode.equals(nodeFinderThat.findNextNode(key));
-            }
-        }
-
-        return equal;
+        if (!header.equals(that.header)) return false;
+        return actualDataStructure.equals(that.actualDataStructure);
     }
 
     @Override
     public int hashCode() {
-        return hashCode;
+        return actualDataStructure.hashCode();
     }
 
     @Override
@@ -659,12 +619,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         out.writeObject(P);
         out.writeObject(maxListLevel);
         out.writeObject(listLevel);
-        out.writeObject(size);
+        out.writeObject(size());
+        out.writeObject(actualDataStructure);
         var it = new SkipListIterator<>(header);
         while (it.hasNext()) {
             var node = it.nextNode();
             out.writeObject(node.getKey());
-            out.writeObject(node.getValue());
         }
         out.flush();
     }
@@ -675,13 +635,14 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         // Read in the same order they were written
         P = (double) in.readObject();
         maxListLevel = (int) in.readObject();
-        initList();
+        initInstance();
         listLevel = (int) in.readObject();
-        var nElements = (int) in.readObject();
+        var size = (int) in.readObject();
+        actualDataStructure = (HashMap<K, V>) in.readObject();
         var nodeFinder = new NodeFinder<>(header);
-        for (int i = 0; i < nElements; i++) {
+        for (int i = 0; i < size; i++) {
             K key = (K) in.readObject();
-            V value = (V) in.readObject();
+            V value = actualDataStructure.get(key);
             put(key, value, nodeFinder);
         }
     }

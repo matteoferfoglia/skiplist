@@ -117,14 +117,15 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
                     .orElse(null);
             assert minKey != null;    // if at least one node is non-null, hence its key should not be null
 
-            SkipListNode<T, Object> lastAddedToUnion = null;
+            SkipListNode<T> lastAddedToUnion = null;
             for (int i = 0; i < nodeFinders.length; i++) {
                 if (nodeFinders[i].findNextNode(minKey) != null) {
                     currentNodes[i] = currentNodes[i].getNext(LOWEST_NODE_LEVEL_INCLUDED);
                     //noinspection unchecked
-                    var nodeGoingToAddToUnion = (SkipListNode<T, Object>) nodeFinders[i].currentNode;
+                    var nodeGoingToAddToUnion = (SkipListNode<T>) nodeFinders[i].currentNode;
                     if (!nodeGoingToAddToUnion.equals(lastAddedToUnion)) {
-                        union.skipListMap.copyNodeAndInsertAtEnd(nodeGoingToAddToUnion);
+                        assert nodeGoingToAddToUnion.getKey() != null;
+                        union.skipListMap.insertNodeAtEnd(nodeGoingToAddToUnion.getKey(), null);
                         lastAddedToUnion = nodeGoingToAddToUnion;
                     }
                 }
@@ -158,12 +159,12 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         var currentB = b.getFirstNodeOrNull();
 
         while (currentA != null && currentB != null) {
-            assert currentA.getKey() != null;
+            var keyA = currentA.getKey();
+            assert keyA != null;
             assert currentB.getKey() != null;
-            var comparison = currentA.getKey().compareTo(currentB.getKey());
+            var comparison = keyA.compareTo(currentB.getKey());
             if (comparison == 0) {
-                //noinspection unchecked    // only keys matter for SkipList
-                intersection.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                intersection.skipListMap.insertNodeAtEnd(keyA, null);
                 currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
                 currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
             } else if (comparison < 0) {
@@ -197,32 +198,31 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         var currentB = b.getFirstNodeOrNull();
 
         while (currentA != null && currentB != null) {
-            assert currentA.getKey() != null;
-            assert currentB.getKey() != null;
-            var comparison = currentA.getKey().compareTo(currentB.getKey());
+            var keyA = currentA.getKey();
+            var keyB = currentB.getKey();
+            assert keyA != null;
+            assert keyB != null;
+            var comparison = keyA.compareTo(keyB);
             if (comparison == 0) {
-                //noinspection unchecked    // only keys matter for SkipList
-                union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                union.skipListMap.insertNodeAtEnd(keyA, null);
                 currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
                 currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
             } else if (comparison < 0) {
-                //noinspection unchecked
-                union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                union.skipListMap.insertNodeAtEnd(keyA, null);
                 currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
             } else {
-                //noinspection unchecked
-                union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentB);
+                union.skipListMap.insertNodeAtEnd(keyB, null);
                 currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
             }
         }
         while (currentA != null) {    // add missing nodes from listA
-            //noinspection unchecked
-            union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+            assert currentA.getKey() != null;
+            union.skipListMap.insertNodeAtEnd(currentA.getKey(), null);
             currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
         }
         while (currentB != null) {    // add missing nodes from listB
-            //noinspection unchecked
-            union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentB);
+            assert currentB.getKey() != null;
+            union.skipListMap.insertNodeAtEnd(currentB.getKey(), null);
             currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
         }
 
@@ -274,8 +274,9 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
 
             if (Arrays.stream(nodeFinders).allMatch(nodeFinder -> nodeFinder.findNextNode(maxKey) != null)) {
                 // node found in all lists
+                assert nodeFinders[0].currentNode.getKey() != null;
                 //noinspection unchecked
-                intersection.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) nodeFinders[0].currentNode);
+                intersection.skipListMap.insertNodeAtEnd((T) nodeFinders[0].currentNode.getKey(), null);
             }
 
             // update nodes
@@ -314,7 +315,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     @NotNull
-    private SkipListNode<T, ?> getHeader() {
+    private SkipListNode<T> getHeader() {
         return skipListMap.getHeader();
     }
 
@@ -470,7 +471,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * header) or null if this instance is empty.
      */
     @Nullable
-    private synchronized SkipListNode<T, ?> getFirstNodeOrNull() {
+    private synchronized SkipListNode<T> getFirstNodeOrNull() {
         return skipListMap.getFirstNodeOrNull();
     }
 
