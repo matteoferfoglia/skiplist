@@ -6,6 +6,7 @@ import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -59,6 +60,24 @@ class SkipListTest {
         var l3 = createSkipListOfIntegersFromString(l3AsStr);
         var expected = createSkipListOfIntegersFromString(expectedIntersectionAsStr);
         var actual = SkipList.intersection(l1, l2, l3);
+        assertEquals(expected, actual);
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            ",,0,0,",
+            "0,0,0,0,0",
+            "0_1_2_3,-1_0_2_5,0,2,0_2",
+            "0_1_2_3_4,-1_0_2_4_5,0,2,0_2"
+    })
+    void intersectionWithPredicate(String l1AsStr, String l2AsStr,
+                                   int minValueIncluded, int maxValueIncluded,  // used to test a predicate
+                                   String expectedIntersectionAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        BiPredicate<Integer, Integer> biPredicate = (a, b) -> minValueIncluded <= a && a <= maxValueIncluded;
+        var expected = createSkipListOfIntegersFromString(expectedIntersectionAsStr);
+        var actual = SkipList.intersection(l1, l2, biPredicate);
         assertEquals(expected, actual);
     }
 
