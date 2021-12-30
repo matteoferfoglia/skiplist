@@ -22,6 +22,12 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     private final SkipListMap<T, Object> skipListMap;
 
     /**
+     * The {@link Comparator} to use. If null, use the natural comparator.
+     */
+    @Nullable
+    private final Comparator<T> comparator;
+
+    /**
      * Constructor.
      * Default missing parameters are used, as described in {@link SkipListMap#SkipListMap(double)}.
      *
@@ -29,6 +35,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(double P) {
         skipListMap = new SkipListMap<>(P);
+        comparator = null;
     }
 
     /**
@@ -39,6 +46,20 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(int maxListLevel) {
         skipListMap = new SkipListMap<>(maxListLevel);
+        comparator = null;
+    }
+
+    /**
+     * Constructor.
+     * Default missing parameters are used, as described in {@link SkipListMap#SkipListMap(int)}.
+     *
+     * @param maxListLevel See the description of the parameter for {@link SkipListMap}.
+     * @param comparator   The {@link Comparator} to use to compare the elements
+     *                     of this object. If null, default comparator is used.
+     */
+    public SkipList(int maxListLevel, @Nullable final Comparator<T> comparator) {
+        skipListMap = new SkipListMap<>(maxListLevel);
+        this.comparator = comparator;
     }
 
     /**
@@ -49,6 +70,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(int maxListLevel, double P) {
         skipListMap = new SkipListMap<>(maxListLevel, P);
+        comparator = null;
     }
 
     /**
@@ -57,6 +79,19 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList() {
         skipListMap = new SkipListMap<>();
+        comparator = null;
+    }
+
+    /**
+     * Default constructor.
+     * Default parameters are used, as described in {@link SkipListMap#SkipListMap()}.
+     *
+     * @param comparator The {@link Comparator} to use to compare the elements
+     *                   of this object. If null, default comparator is used.
+     */
+    public SkipList(@Nullable final Comparator<T> comparator) {
+        skipListMap = new SkipListMap<>();
+        this.comparator = comparator;
     }
 
     /**
@@ -70,6 +105,23 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         skipListMap = new SkipListMap<>();
         setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(collection.size(), SkipListMap.DEFAULT_P));
         addAll((collection));
+        comparator = null;
+    }
+
+    /**
+     * Creates a new instance of this class with all elements from
+     * the given input collection.
+     *
+     * @param collection The {@link Collection} from which this instance
+     *                   be  created.
+     * @param comparator The {@link Comparator} to use to compare the elements
+     *                   of this object. If null, default comparator is used.
+     */
+    public SkipList(@NotNull final Collection<T> collection, @Nullable final Comparator<T> comparator) {
+        skipListMap = new SkipListMap<>();
+        setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(collection.size(), SkipListMap.DEFAULT_P));
+        addAll((collection));
+        this.comparator = comparator;
     }
 
     /**
@@ -138,6 +190,68 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     /**
      * Computes the intersection of the two instances passed as parameters
      * without modifying them. If both input lists contains the same element
+     * (same means that the given comparator} applied to the keys of the two
+     * elements return 0), the elements will be added to the resulting
+     * intersection only if the predicate will evaluate to true.
+     * An example of use of this method is in an Information Retrieval System
+     * where to answer phrasal queries might be needed to compute the
+     * intersection of posting lists (saved as {@link SkipList}) with some
+     * constraints on the position of terms in documents (position may be
+     * an attribute of a posting instance, in the case that {@link SkipList}
+     * of postings is considered.
+     *
+     * @param <T>             The type of elements in the list.
+     * @param a               One instance.
+     * @param b               The other instance.
+     * @param insertPredicate The {@link BiPredicate} that two elements must
+     *                        satisfy in order to be added to the resulting
+     *                        intersection list.
+     * @param comparator      The comparator to use.
+     * @return a new instance with the intersection of the given two.
+     */
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> intersection(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
+            @NotNull final BiPredicate<@NotNull T, @NotNull T> insertPredicate,
+            @NotNull final Comparator<@NotNull T> comparator) {
+
+        SkipList<T> intersection = new SkipList<>(comparator);
+        if (a.isEmpty() || b.isEmpty()) {
+            return intersection;    // empty intersection
+        }
+
+        var nodeFinderA = new NodeFinder<>(a.getHeader());
+        var nodeFinderB = new NodeFinder<>(b.getHeader());
+
+        var currentA = a.getFirstNodeOrNull();
+        var currentB = b.getFirstNodeOrNull();
+
+        while (currentA != null && currentB != null) {
+            assert currentA.getKey() != null;
+            assert currentB.getKey() != null;
+            var comparison = comparator.compare(currentA.getKey(), currentB.getKey());
+            if (comparison == 0) {
+                if (insertPredicate.test(currentA.getKey(), currentB.getKey())) {
+                    //noinspection unchecked    // only keys matter for SkipList
+                    intersection.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                }
+                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+                currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+            } else if (comparison < 0) {
+                var nextNode = nodeFinderA.findNextNode(currentB.getKey());
+                currentA = nextNode == null ? currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
+            } else {
+                var nextNode = nodeFinderB.findNextNode(currentA.getKey());
+                currentB = nextNode == null ? currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
+            }
+        }
+
+        return intersection;
+    }
+
+    /**
+     * Computes the intersection of the two instances passed as parameters
+     * without modifying them. If both input lists contains the same element
      * (same means that the {@link Comparable#compareTo(Object)} applied to
      * the keys of the two elements return 0), the elements will be added to
      * the resulting intersection only if the predicate will evaluate to true.
@@ -161,68 +275,47 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
             @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
             @NotNull final BiPredicate<@NotNull T, @NotNull T> insertPredicate) {
 
-        SkipList<T> intersection = new SkipList<>();
-        if (a.isEmpty() || b.isEmpty()) {
-            return intersection;    // empty intersection
-        }
-
-        var nodeFinderA = new NodeFinder<>(a.getHeader());
-        var nodeFinderB = new NodeFinder<>(b.getHeader());
-
-        var currentA = a.getFirstNodeOrNull();
-        var currentB = b.getFirstNodeOrNull();
-
-        while (currentA != null && currentB != null) {
-            assert currentA.getKey() != null;
-            assert currentB.getKey() != null;
-            var comparison = currentA.getKey().compareTo(currentB.getKey());
-            if (comparison == 0) {
-                if (insertPredicate.test(currentA.getKey(), currentB.getKey())) {
-                    //noinspection unchecked    // only keys matter for SkipList
-                    intersection.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
-                }
-                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
-                currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
-            } else if (comparison < 0) {
-                var nextNode = nodeFinderA.findNextNode(currentB.getKey());
-                currentA = nextNode == null ? currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
-            } else {
-                var nextNode = nodeFinderB.findNextNode(currentA.getKey());
-                currentB = nextNode == null ? currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
-            }
-        }
-
-        return intersection;
+        return intersection(a, b, insertPredicate, Comparable::compareTo); // use natural comparator
     }
 
     /**
      * Computes the intersection of the two instances passed as parameters
-     * without modifying them.
+     * without modifying them. If both input lists contains the same element
+     * (same means that the given comparator applied to the keys of the two
+     * elements return 0), the elements will be added to the resulting
+     * intersection.
      *
-     * @param a One instance.
-     * @param b The other instance.
+     * @param <T>        The type of elements in the list.
+     * @param a          One instance.
+     * @param b          The other instance.
+     * @param comparator The comparator to use.
      * @return a new instance with the intersection of the given two.
      */
     @NotNull
-    private static <T extends Comparable<T>> SkipList<T> intersection2(
-            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
-        return intersection(a, b, (x, y) -> true);
+    public static <T extends Comparable<T>> SkipList<T> intersection(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
+            @NotNull final Comparator<@NotNull T> comparator) {
+
+        return intersection(a, b, (o1, o2) -> true, comparator);
     }
 
     /**
-     * Computes the union of the two instances passed as parameters
+     * Computes the unoin of the two instances passed as parameters
      * without modifying them.
      *
-     * @param a One instance.
-     * @param b The other instance.
-     * @return a new instance with the union of the given two.
+     * @param <T>        The type of elements in the list.
+     * @param a          One instance.
+     * @param b          The other instance.
+     * @param comparator The comparator to use.
+     * @return a new instance with the intersection of the given two.
      */
     @NotNull
-    private static <T extends Comparable<T>> SkipList<T> union2(
-            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
+    public static <T extends Comparable<T>> SkipList<T> union(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
+            @NotNull final Comparator<@NotNull T> comparator) {
 
         SkipList<T> union = new SkipList<>(
-                getBestMaxListLevelAccordingToExpectedSize(a.size() + b.size(), DEFAULT_P));
+                getBestMaxListLevelAccordingToExpectedSize(a.size() + b.size(), DEFAULT_P), comparator);
 
         var currentA = a.getFirstNodeOrNull();
         var currentB = b.getFirstNodeOrNull();
@@ -230,7 +323,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         while (currentA != null && currentB != null) {
             assert currentA.getKey() != null;
             assert currentB.getKey() != null;
-            var comparison = currentA.getKey().compareTo(currentB.getKey());
+            var comparison = comparator.compare(currentA.getKey(), currentB.getKey());
             if (comparison == 0) {
                 //noinspection unchecked    // only keys matter for SkipList
                 union.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
@@ -258,6 +351,34 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         }
 
         return union;
+    }
+
+    /**
+     * Computes the intersection of the two instances passed as parameters
+     * without modifying them.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the intersection of the given two.
+     */
+    @NotNull
+    private static <T extends Comparable<T>> SkipList<T> intersection2(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
+        return intersection(a, b, (BiPredicate<T, T>) (x, y) -> true);
+    }
+
+    /**
+     * Computes the union of the two instances passed as parameters
+     * without modifying them.
+     *
+     * @param a One instance.
+     * @param b The other instance.
+     * @return a new instance with the union of the given two.
+     */
+    @NotNull
+    private static <T extends Comparable<T>> SkipList<T> union2(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b) {
+        return union(a, b, Comparable::compareTo);
     }
 
     /**
@@ -464,7 +585,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     @Nullable
     @Override
     public Comparator<? super T> comparator() {
-        return null;
+        return comparator;
     }
 
     @NotNull
