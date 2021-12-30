@@ -27,8 +27,6 @@ import java.util.stream.Collectors;
 // returned values of some methods are not used in project, but they can be useful
 public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Externalizable, Iterable<K> {
 
-    // TODO: remove Objects.requireNonNull
-
     public static final int MIN_ALLOWED_LIST_LEVEL = 1;
     /**
      * The minimum value for the level, suitable as index.
@@ -430,7 +428,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * was no mapping for key.
      */
     public synchronized V put(@NotNull SkipListNode<K, V> node) {
-        return put(Objects.requireNonNull(node.getKey()), node.getValue());
+        return put((node.getKey()), node.getValue());
     }
 
     /**

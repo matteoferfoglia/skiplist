@@ -4,7 +4,6 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
-import java.util.Objects;
 
 import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
 
@@ -35,7 +34,7 @@ class NodeFinder<K extends Comparable<K>, V> {
      * Constructor.
      */
     NodeFinder(@NotNull SkipListNode<K, V> header) {
-        this.header = Objects.requireNonNull(header);
+        this.header = (header);
         this.currentNode = header;
 
         // generic array creation

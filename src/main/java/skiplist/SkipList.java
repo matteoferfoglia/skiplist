@@ -69,7 +69,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     public SkipList(@NotNull final Collection<T> collection) {
         skipListMap = new SkipListMap<>();
         setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(collection.size(), SkipListMap.DEFAULT_P));
-        addAll(Objects.requireNonNull(collection));
+        addAll((collection));
     }
 
     /**
@@ -400,7 +400,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
 
     @Override
     public synchronized boolean add(@NotNull T t) {
-        skipListMap.put(Objects.requireNonNull(t), null);
+        skipListMap.put((t), null);
         return true;
     }
 
@@ -471,19 +471,19 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     @Override
     public synchronized SortedSet<T> subSet(@NotNull T fromElement, @NotNull T toElement) {
         return new SkipList<>(skipListMap.subMap(
-                Objects.requireNonNull(fromElement), Objects.requireNonNull(toElement)).keySet());
+                (fromElement), (toElement)).keySet());
     }
 
     @NotNull
     @Override
     public synchronized SortedSet<T> headSet(T toElement) {
-        return new SkipList<>(skipListMap.headMap(Objects.requireNonNull(toElement)).keySet());
+        return new SkipList<>(skipListMap.headMap((toElement)).keySet());
     }
 
     @NotNull
     @Override
     public synchronized SortedSet<T> tailSet(T fromElement) {
-        return new SkipList<>(skipListMap.tailMap(Objects.requireNonNull(fromElement)).keySet());
+        return new SkipList<>(skipListMap.tailMap((fromElement)).keySet());
     }
 
     @Override
