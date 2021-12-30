@@ -27,6 +27,8 @@ import java.util.stream.Collectors;
 // returned values of some methods are not used in project, but they can be useful
 public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>, Externalizable, Iterable<K> {
 
+    // TODO: remove Objects.requireNonNull
+
     public static final int MIN_ALLOWED_LIST_LEVEL = 1;
     /**
      * The minimum value for the level, suitable as index.
@@ -393,9 +395,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         if (nodeEventuallyAlreadyPresent != null) {
             oldValue = nodeEventuallyAlreadyPresent.getValue();
             nodeEventuallyAlreadyPresent.setValue(value);
-            hashCode -= hashCode(key, oldValue);
+            hashCode = hashCode - hashCode(key, oldValue) + hashCode(key, value);
         } else {
-            // oldValue is null by default because the node at the specified key was not present.
             var randomLevel = generateRandomLevel();    // the level for the new node
             if (randomLevel > listLevel) {
                 listLevel = randomLevel;    // update the level of the list if the new node to insert has a level higher than the current level list
@@ -404,7 +405,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
                 var forwardPointerToSetForThisLevel = rightmostNodesLowerThanGivenKey[level].getNext(level);
                 forwardPointerToSetForThisLevel =
-                        forwardPointerToSetForThisLevel != null && nodeToInsert.isKeyLowerThan(forwardPointerToSetForThisLevel.getKey())  // forward pointer cannot have key lower than node key
+                        forwardPointerToSetForThisLevel != null
+                                && nodeToInsert.isKeyLowerThan(forwardPointerToSetForThisLevel.getKey())  // forward pointer cannot have key lower than node key
                                 ? forwardPointerToSetForThisLevel
                                 : null;
                 nodeToInsert.setNext(level, forwardPointerToSetForThisLevel);
@@ -540,7 +542,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             var sortedKeySet = keys.stream().sorted().distinct().collect(Collectors.toList());
             var nodeFinder = new NodeFinder<>(header);
             for (var key : sortedKeySet) {
-                changed = put(key, null, nodeFinder) != null || changed;
+                var oldValue = put(key, null, nodeFinder);
+                changed = oldValue != null || changed;
             }
         }
         return changed || size() != initialSize;
