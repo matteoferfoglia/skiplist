@@ -3,10 +3,7 @@ package skiplist;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Arrays;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -42,6 +39,11 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
     @Nullable   // inner elements can be null
     private final SkipListNode<K, V>[] forwardPointers;
     /**
+     * The key comparator.
+     */
+    @NotNull
+    private final Comparator<K> keyComparator;
+    /**
      * The value contained in this element.
      */
     @Nullable
@@ -50,11 +52,12 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
     /**
      * Creates a new instance of this class.
      *
-     * @param key   The key of this instance.
-     * @param value The value of this instance
-     * @param level The level of this node.
+     * @param key           The key of this instance.
+     * @param value         The value of this instance
+     * @param level         The level of this node.
+     * @param keyComparator The {@link Comparator} to use to compare keys.
      */
-    public SkipListNode(@Nullable final K key, @Nullable V value, int level) {
+    public SkipListNode(@Nullable final K key, @Nullable V value, int level, @Nullable Comparator<K> keyComparator) {
         if (level < MINIMUM_VALID_LEVEL_INCLUDED) {
             throw new IllegalArgumentException("The node level must be at least " + MINIMUM_VALID_LEVEL_INCLUDED);
         }
@@ -62,6 +65,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
         this.value = value;
         //noinspection unchecked    // generic array creation
         this.forwardPointers = (SkipListNode<K, V>[]) new SkipListNode[level];
+        this.keyComparator = keyComparator == null ? Comparator.naturalOrder() : keyComparator;
     }
 
     /**
@@ -77,6 +81,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
         this.value = skipListNode.value;
         //noinspection unchecked    // generic array creation
         this.forwardPointers = (SkipListNode<K, V>[]) new SkipListNode[nodeLevel];
+        this.keyComparator = skipListNode.keyComparator;
     }
 
     @Override
@@ -173,7 +178,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
         // assert the forward pointer key is greater than this.key
         assert newForwardPointerAtLevel == null
                 || (newForwardPointerAtLevel.key != null
-                && (this.key == null || newForwardPointerAtLevel.key.compareTo(this.key) > 0));
+                && (this.key == null || keyComparator.compare(newForwardPointerAtLevel.key, this.key) > 0));
         return checkValidInputLevelBeforeGetOrSet(level, false, newForwardPointerAtLevel);
     }
 
@@ -194,24 +199,23 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      *                                  cast to the type of the key of this instance.
      */
     public boolean isKeyLowerThan(Object key) {
-        // exception is thrown if invalid cast
-        //noinspection unchecked
-        return getKey() != null && key != null && getKey().compareTo((K) key) < 0;
+        return isKeyLowerThan(key, keyComparator);
     }
 
     /**
-     * @param key The key to be compared with the one of this instance.
+     * @param key        The key to be compared with the one of this instance.
+     * @param comparator The comparator to use.
      * @return false if either the key of this instance or the given parameter
-     * are null, true if the key of this instance is lower or equals to the input key,
+     * are null, true if the key of this instance is strictly lower than the input key,
      * false otherwise.
      * @throws IllegalArgumentException if the type of the key is invalid.
      * @throws ClassCastException       if the type of the given key cannot be
      *                                  cast to the type of the key of this instance.
      */
-    public boolean isKeyLowerOrEqualsTo(Object key) {
+    public boolean isKeyLowerThan(Object key, @NotNull Comparator<K> comparator) {
         // exception is thrown if invalid cast
         //noinspection unchecked
-        return getKey() != null && key != null && getKey().compareTo((K) key) <= 0;
+        return getKey() != null && key != null && comparator.compare(getKey(), (K) key) < 0;
     }
 
     /**
@@ -224,12 +228,28 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      *                                  cast to the type of the key of this instance.
      */
     public boolean isSameKey(Object key) {
-        return Objects.equals(getKey(), key);
+        return isSameKey(key, keyComparator);
+    }
+
+    /**
+     * @param key        The key to be compared with the one of this instance.
+     * @param comparator The comparator to use.
+     * @return true if the key (eventually null) of this instance is equal
+     * to the input key, false otherwise. If both keys are null, this method
+     * returns true.
+     * @throws IllegalArgumentException if the type of the key is invalid.
+     * @throws ClassCastException       if the type of the given key cannot be
+     *                                  cast to the type of the key of this instance.
+     */
+    public boolean isSameKey(Object key, @NotNull Comparator<K> comparator) {
+        //noinspection unchecked
+        return key == null || getKey() == null ? key == getKey() : comparator.compare(getKey(), (K) key) == 0;
     }
 
     /**
      * Two instance of this class are considered equals if both their
-     * {@link #key}s and {@link #value}s are equals.
+     * {@link #key}s (according to the {@link #keyComparator}) and
+     * {@link #value}s are equals.
      */
     @Override
     public boolean equals(Object o) {
@@ -238,7 +258,8 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
 
         SkipListNode<?, ?> that = (SkipListNode<?, ?>) o;
 
-        if (!Objects.equals(key, that.key)) return false;
+        //noinspection unchecked
+        if (keyComparator.compare(key, (K) that.key) != 0) return false;
         return Objects.equals(value, that.value);
     }
 
@@ -246,5 +267,4 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
     public int hashCode() {
         return Objects.hashCode(key);
     }
-
 }

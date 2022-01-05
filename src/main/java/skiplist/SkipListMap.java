@@ -49,35 +49,34 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * The maximum value (included) for {@link #P}.
      */
     private static final double MAX_P_INCLUDED = 1;
-
+    /**
+     * The {@link Comparator} to use to compare keys.
+     */
+    @NotNull
+    private Comparator<K> keyComparator = Comparator.naturalOrder();
     /**
      * The maximum value (constant, this is a parameter) to which levels
      * of nodes are capped for this instance.
      */
     private int maxListLevel;
-
     /**
      * The hashCode for this instance.
      * This fields caches the hashCode for the instance, in this
      * way the value is immediately available.
      */
     private int hashCode = 0;
-
     /**
      * The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
     private double P;
-
     /**
      * The number of elements in this list.
      */
     private int size = 0;
-
     /**
      * Level of the list (see description of {@link #getListLevel()}).
      */
     private int listLevel = 0;
-
     /**
      * The header of a skipList has forward pointers at level one through {@link #maxListLevel}.
      * The forward pointers of the header at levels higher than the current maximum level of
@@ -86,7 +85,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @SuppressWarnings("NotNullFieldNotInitialized") // initialized by initList method invoked by constructor
     @NotNull
     private SkipListNode<K, V> header;
-
     /**
      * Rightmost non-null nodes of this instance.
      */
@@ -161,10 +159,22 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
+     * Sets the comparator for this instance.
+     *
+     * @param keyComparator The {@link Comparator} to use. If null, the natural
+     *                      order will be used.
+     */
+    public void setKeyComparator(@Nullable Comparator<K> keyComparator) {
+        if (keyComparator != null) {
+            this.keyComparator = keyComparator;
+        }
+    }
+
+    /**
      * Initializes fields of this class.
      */
     private synchronized void initList() {
-        header = new SkipListNode<>(null, null, maxListLevel);
+        header = new SkipListNode<>(null, null, maxListLevel, keyComparator);
         //noinspection unchecked    // generic array creation
         rightmostNodes = Collections.nCopies(maxListLevel, header).toArray(new SkipListNode[0]);
         listLevel = 0;
@@ -211,6 +221,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         if (maxListLevel != this.maxListLevel) {
             this.maxListLevel = maxListLevel;
             SkipListMap<K, V> tmp = new SkipListMap<>();
+            tmp.setKeyComparator(keyComparator);
             tmp.putAll(this);
             initList();
             putAll(tmp);
@@ -230,10 +241,10 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         return setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(size, P));
     }
 
-    @Nullable
+    @NotNull
     @Override
     public Comparator<? super K> comparator() {
-        return null;    // use natural ordering for keys
+        return keyComparator;
     }
 
     @NotNull
@@ -256,12 +267,13 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @NotNull
     private synchronized SkipListMap<K, V> subMapLastIncluded(@NotNull K fromKey, @NotNull K toKey, boolean lastIncluded) {
         SkipListMap<K, V> subMap = new SkipListMap<>(P);
+        subMap.setKeyComparator(keyComparator);
         var nextNode = findNode(fromKey);
 
         final Predicate<SkipListNode<K, V>> toAdd = node -> {
             if (node == null) return false;
             assert node.getKey() != null;
-            var comparison = node.getKey().compareTo(toKey);
+            var comparison = comparator().compare(node.getKey(), toKey);
             return lastIncluded ? comparison <= 0 : comparison < 0;
         };
 
@@ -399,7 +411,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             if (randomLevel > listLevel) {
                 listLevel = randomLevel;    // update the level of the list if the new node to insert has a level higher than the current level list
             }
-            var nodeToInsert = new SkipListNode<>(key, value, randomLevel);
+            var nodeToInsert = new SkipListNode<>(key, value, randomLevel, keyComparator);
             for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
                 var forwardPointerToSetForThisLevel = rightmostNodesLowerThanGivenKey[level].getNext(level);
                 forwardPointerToSetForThisLevel =
@@ -428,6 +440,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * was no mapping for key.
      */
     public synchronized V put(@NotNull SkipListNode<K, V> node) {
+        assert node.getKey() != null;
         return put((node.getKey()), node.getValue());
     }
 
@@ -537,11 +550,15 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         boolean changed = false;
         var initialSize = size();
         if (!keys.isEmpty()) {
-            var sortedKeySet = keys.stream().sorted().distinct().collect(Collectors.toList());
+            var sortedKeySet = keys.stream().sorted(keyComparator).collect(Collectors.toList());
             var nodeFinder = new NodeFinder<>(header);
+            K previousKey = null;
             for (var key : sortedKeySet) {
-                var oldValue = put(key, null, nodeFinder);
-                changed = oldValue != null || changed;
+                if (previousKey == null || keyComparator.compare(previousKey, key) != 0) {   // keep only distinct keys
+                    previousKey = key;
+                    var oldValue = put(key, null, nodeFinder);
+                    changed = oldValue != null || changed;
+                }
             }
         }
         return changed || size() != initialSize;

@@ -22,12 +22,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     private final SkipListMap<T, Object> skipListMap;
 
     /**
-     * The {@link Comparator} to use. If null, use the natural comparator.
-     */
-    @Nullable
-    private final Comparator<T> comparator;
-
-    /**
      * Constructor.
      * Default missing parameters are used, as described in {@link SkipListMap#SkipListMap(double)}.
      *
@@ -35,7 +29,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(double P) {
         skipListMap = new SkipListMap<>(P);
-        comparator = null;
     }
 
     /**
@@ -46,7 +39,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(int maxListLevel) {
         skipListMap = new SkipListMap<>(maxListLevel);
-        comparator = null;
     }
 
     /**
@@ -59,7 +51,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(int maxListLevel, @Nullable final Comparator<T> comparator) {
         skipListMap = new SkipListMap<>(maxListLevel);
-        this.comparator = comparator;
+        skipListMap.setKeyComparator(comparator);
     }
 
     /**
@@ -70,7 +62,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(int maxListLevel, double P) {
         skipListMap = new SkipListMap<>(maxListLevel, P);
-        comparator = null;
     }
 
     /**
@@ -79,7 +70,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList() {
         skipListMap = new SkipListMap<>();
-        comparator = null;
     }
 
     /**
@@ -91,7 +81,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(@Nullable final Comparator<T> comparator) {
         skipListMap = new SkipListMap<>();
-        this.comparator = comparator;
+        skipListMap.setKeyComparator(comparator);
     }
 
     /**
@@ -105,7 +95,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         skipListMap = new SkipListMap<>();
         setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(collection.size(), SkipListMap.DEFAULT_P));
         addAll((collection));
-        comparator = null;
     }
 
     /**
@@ -119,9 +108,9 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      */
     public SkipList(@NotNull final Collection<T> collection, @Nullable final Comparator<T> comparator) {
         skipListMap = new SkipListMap<>();
+        skipListMap.setKeyComparator(comparator);
         setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(collection.size(), SkipListMap.DEFAULT_P));
-        addAll((collection));
-        this.comparator = comparator;
+        addAll(collection);
     }
 
     /**
@@ -585,7 +574,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     @Nullable
     @Override
     public Comparator<? super T> comparator() {
-        return comparator;
+        return skipListMap.comparator();
     }
 
     @NotNull

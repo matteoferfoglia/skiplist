@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Collections;
+import java.util.Comparator;
 
 import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
 
@@ -57,7 +58,7 @@ class NodeFinder<K extends Comparable<K>, V> {
     public SkipListNode<K, V> findNextNode(@NotNull Object key) {
         //noinspection ConstantConditions   // one more assert is better than one less
         assert key != null;
-        assert !key.equals(currentNode.getKey());
+        assert !currentNode.isSameKey(key, Comparator.naturalOrder());
 
         for (int level = currentNode.getLevel() - 1;    // start search from the highest level node
              level >= LOWEST_NODE_LEVEL_INCLUDED;       // down till the lowest level or break before if node is found
@@ -73,7 +74,7 @@ class NodeFinder<K extends Comparable<K>, V> {
                 currentNode = nextNode;
             }
             assert currentNode == header/*compare reference*/
-                    || (currentNode.isKeyLowerThan(key)
+                    || (currentNode.isKeyLowerThan(key, Comparator.naturalOrder())
                     && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
 
             rightmostNodes[level] = currentNode;
