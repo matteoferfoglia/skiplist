@@ -555,9 +555,9 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             K previousKey = null;
             for (var key : sortedKeySet) {
                 if (previousKey == null || keyComparator.compare(previousKey, key) != 0) {   // keep only distinct keys
-                    previousKey = key;
                     var oldValue = put(key, null, nodeFinder);
                     changed = oldValue != null || changed;
+                    previousKey = key;
                 }
             }
         }

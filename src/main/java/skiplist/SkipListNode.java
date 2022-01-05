@@ -159,6 +159,14 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
     }
 
     /**
+     * @return The {@link Comparator} used by this node.
+     */
+    @NotNull
+    public Comparator<K> getKeyComparator() {
+        return keyComparator;
+    }
+
+    /**
      * @param level The level for which the forward pointer is desired.
      * @return The forward pointer (eventually null if not set) for the given level.
      */

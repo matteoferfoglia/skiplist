@@ -105,6 +105,6 @@ class NodeFinder<K extends Comparable<K>, V> {
                 && (node == null    // if node is null, it means that the end of list is reached, hence given key is for sure lower
                 || ((keyOfNode = node.getKey()) != null // null key is considered to be lower than any other key
                 && keyOfNode.getClass().isAssignableFrom(key.getClass()) // check type compatibility
-                && keyOfNode.compareTo((K) key) >= 0));  // given key must be lower or equal than the key of node, i.e., key of node must be strictly greater than given key
+                && node.getKeyComparator().compare(node.getKey(), (K) key) >= 0));  // given key must be lower or equal than the key of node, i.e., key of node must be strictly greater than given key
     }
 }
