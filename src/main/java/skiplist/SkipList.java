@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.*;
 import java.util.function.BiPredicate;
+import java.util.stream.Collectors;
 
 import static skiplist.SkipListMap.*;
 
@@ -111,6 +112,34 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         skipListMap.setKeyComparator(comparator);
         setMaxListLevel(getBestMaxListLevelAccordingToExpectedSize(collection.size(), SkipListMap.DEFAULT_P));
         addAll(collection);
+    }
+
+    /**
+     * Creates and returns a new instance of this class with all elements from
+     * the given input <strong>already sorted</strong> sortedCollection.
+     * <p/>
+     * <strong>NOTICE: if the provided collection is not sorted, unexpected behaviours
+     * might happen while using the returned data-structure.</strong>
+     *
+     * @param <T>              The type of the element in the input collection.
+     * @param sortedCollection The <strong>sorted</strong> {@link Collection}
+     *                         from which a new instance must be created
+     * @param comparator       The {@link Comparator} to use to compare the elements
+     *                         of the object to be created. If null, default comparator is used.
+     */
+    public static <T extends Comparable<T>> SkipList<T> createNewInstanceFromSortedCollection(
+            @NotNull final Collection<T> sortedCollection, @Nullable final Comparator<T> comparator) {
+
+        // check order
+        assert sortedCollection.stream().sorted(comparator == null ? Comparator.naturalOrder() : comparator)
+                .collect(Collectors.toList()).equals(sortedCollection);
+
+        var skipList = new SkipList<T>();
+        skipList.skipListMap.setKeyComparator(comparator);
+        skipList.setMaxListLevel(
+                getBestMaxListLevelAccordingToExpectedSize(sortedCollection.size(), SkipListMap.DEFAULT_P));
+        skipList.skipListMap.putAllKeysWithoutCheckingOrderAtTheEnd(sortedCollection);
+        return skipList;
     }
 
     /**

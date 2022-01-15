@@ -506,14 +506,26 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     void copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) {
         var newLevelForNode = generateRandomLevel();    // nodeLevel is correlated with listLevel
         var nodeToInsert = new SkipListNode<>(node, newLevelForNode);
-        if (newLevelForNode > listLevel) {
-            listLevel = newLevelForNode;    // update the level of the list if the new node to insert has a level higher than the current level list
+        insertNodeAtEnd(nodeToInsert);
+    }
+
+    /**
+     * Inserts the given node at the end of this instance, without checking
+     * if the order in the instance is respected, which is a programmer's responsibility.
+     *
+     * @param node The node to be inserted <strong>at the end</strong> of this instance,
+     *             without checking if the order of elements in this instance is kept.
+     */
+    private void insertNodeAtEnd(@NotNull SkipListNode<K, V> node) {
+        var nodeLevel = node.getLevel();
+        if (nodeLevel > listLevel) {
+            listLevel = nodeLevel;    // update the level of the list if the new node to insert has a level higher than the current level list
         }
-        assert nodeToInsert.getLevel() <= maxListLevel && nodeToInsert.getLevel() <= listLevel;
-        for (int level = 0; level < newLevelForNode; level++) {   // update pointers (actual insertion is here)
-            nodeToInsert.setNext(level, null/*node is added at the end of the list, there are no more nodes following this one*/);
-            rightmostNodes[level].setNext(level, nodeToInsert);
-            rightmostNodes[level] = nodeToInsert;
+        assert node.getLevel() <= maxListLevel && node.getLevel() <= listLevel;
+        for (int level = 0; level < nodeLevel; level++) {   // update pointers (actual insertion is here)
+            node.setNext(level, null/*node is added at the end of the list, there are no more nodes following this one*/);
+            rightmostNodes[level].setNext(level, node);
+            rightmostNodes[level] = node;
         }
         hashCode += hashCode(node.getKey(), node.getValue());
         size++;
@@ -562,6 +574,47 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             }
         }
         return changed || size() != initialSize;
+    }
+
+    /**
+     * Like {@link #putAllKeys(Collection)}, but this method adds all input keys
+     * <strong>without checking the order</strong>, this means that the input collection
+     * passed as parameter <strong>must be ordered</strong>, otherwise unexpected
+     * results may happen during the use of the data-structure.
+     * <p/>
+     * <strong>All input keys are inserted at the end of this instance, WITHOUT
+     * CHECKING THE ORDER</strong>.
+     * <p/>
+     * <strong>This method does NOT check if duplicate keys are provided in the input
+     * collection, neither if they are already present in this instance. This method
+     * simply add all elements from the input collection at the end of this instance,
+     * in the same order in which they appear in the input collection.</strong>.
+     * <p/>
+     * <strong>NOTICE: providing an already sorted data-structure is responsibility
+     * of the programmer who invokes this method! All input keys will be added to this
+     * data-structure WITHOUT checking the order.</strong>
+     * <p/>
+     * This method is done because for some high-efficient procedure to check if
+     * a collection is sorted might be expensive and useless if the programmer
+     * takes the responsibility to sort it before invoking this method (e.g., if
+     * the input collection comes from another procedure which already sorted it).
+     *
+     * @param keys Input keys to add to this instance.
+     * @return true if this instance has changed as consequence of the invocation of
+     * this method.
+     */
+    public synchronized boolean putAllKeysWithoutCheckingOrderAtTheEnd(@NotNull Collection<? extends K> keys) {
+
+        // assert collection is sorted (invoker's responsibility)
+        assert keys.stream().sorted(keyComparator).collect(Collectors.toList())
+                .equals(keys.stream().sequential().collect(Collectors.toList()));
+
+        if (!keys.isEmpty()) {
+            for (var key : keys) {
+                insertNodeAtEnd(new SkipListNode<>(key, null, generateRandomLevel(), keyComparator));
+            }
+        }
+        return !keys.isEmpty(); // whatever is given in input collection, is added to this list, which consequently will change, unless the input collection is empty
     }
 
     /**

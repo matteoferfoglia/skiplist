@@ -1,13 +1,16 @@
 package skiplist;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
 
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.List;
 import java.util.function.BiPredicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -183,4 +186,11 @@ class SkipListTest {
         assertEquals(expected, actual);
     }
 
+    @Test
+    void createNewInstanceFromSortedCollection() {
+        Collection<Integer> sortedCollection = IntStream.range(0, 10).boxed().collect(Collectors.toList());
+        var expected = new SkipList<>(sortedCollection);
+        var actual = SkipList.createNewInstanceFromSortedCollection(sortedCollection, null);
+        assertEquals(expected, actual);
+    }
 }
