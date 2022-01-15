@@ -429,6 +429,126 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     /**
+     * Computes the difference of the two instances passed as parameters
+     * without modifying them. If both input lists contains the same element
+     * (same means that the given comparator applied to the keys of the two
+     * elements return 0), the element will <strong>not</strong> be added
+     * to the resulting intersection only if the predicate will evaluate to true.
+     * <strong>Notice:</strong> this method is <strong>not</strong> commutative
+     * wrt. its operands (input parameters).
+     * <p/>
+     * In other words, given two lists (let they be A and B respectively), this
+     * method computes the difference between them (A\B) only if the given
+     * predicate holds. Examples (p is the input {@link BiPredicate}, the result
+     * of the method is shown after the arrow "&rArr;"):
+     * <ul>
+     *     <li>A={1,2,3,4}, B={2,3}, p=(a,b)->true &rArr; {1,4}</li>
+     *     <li>A={1,2,3,4}, B={2,3}, p=(a,b)->false &rArr; {1,2,3,4}</li>
+     *     <li>A={1,2,3,4}, B={2,3}, p=(a,b)->a==2 &rArr; {1,3,4}</li>
+     * </ul>
+     * <p/>
+     *
+     * @param <T>              The type of elements in the list.
+     * @param a                One instance.
+     * @param b                The other instance.
+     * @param excludePredicate The {@link BiPredicate} that two elements must satisfy in order to
+     *                         <strong>not</strong> be added to the resulting difference list.
+     * @param comparator       The comparator to use.
+     * @return a new instance with the intersection of the given two.
+     */
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> difference(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
+            @NotNull final BiPredicate<@NotNull T, @NotNull T> excludePredicate,
+            @NotNull final Comparator<@NotNull T> comparator) {
+
+        SkipList<T> difference = new SkipList<>(a.skipListMap.getMaxListLevel(), a.skipListMap.getP());
+        if (a.isEmpty()) {
+            return difference;    // empty difference
+        }
+
+        var nodeFinderA = new NodeFinder<>(a.getHeader());
+        var nodeFinderB = new NodeFinder<>(b.getHeader());
+
+        var currentA = a.getFirstNodeOrNull();
+        var currentB = b.getFirstNodeOrNull();
+
+        while (currentA != null && currentB != null) {
+            assert currentA.getKey() != null;
+            assert currentB.getKey() != null;
+            var comparison = comparator.compare(currentA.getKey(), currentB.getKey());
+            if (comparison == 0) {
+                if (!excludePredicate.test(currentA.getKey(), currentB.getKey())) {
+                    //noinspection unchecked    // only keys matter for SkipList
+                    difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                }
+                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+                currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+            } else if (comparison < 0) {
+                //noinspection unchecked
+                difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+                var nextNode = nodeFinderA.findNextNode(currentB.getKey());
+                currentA = nextNode == null ? currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
+            } else {
+                //noinspection unchecked
+                difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentB);
+                var nextNode = nodeFinderB.findNextNode(currentA.getKey());
+                currentB = nextNode == null ? currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
+            }
+        }
+        while (currentA != null) {    // add missing nodes from listA
+            //noinspection unchecked
+            difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
+            currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+        }
+
+        return difference;
+    }
+
+    /**
+     * Computes the difference of the two instances passed as parameters
+     * without modifying them. If both input lists contains the same element
+     * (same means that the {@link Comparable#compareTo(Object)} applied to
+     * the keys of the two elements return 0), the elements will <strong>not</strong>
+     * be added to the resulting list only if the predicate will evaluate to true.
+     *
+     * @param <T>              The type of elements in the list.
+     * @param a                One instance.
+     * @param b                The other instance.
+     * @param excludePredicate The {@link BiPredicate} that two elements must satisfy in order to
+     *                         <strong>not</strong> be added to the resulting difference list.
+     * @return a new instance with the intersection of the given two.
+     */
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> difference(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
+            @NotNull final BiPredicate<@NotNull T, @NotNull T> excludePredicate) {
+
+        return difference(a, b, excludePredicate, Comparable::compareTo); // use natural comparator
+    }
+
+    /**
+     * Computes the difference of the two instances passed as parameters
+     * without modifying them. If both input lists contains the same element
+     * (same means that the given comparator applied to the keys of the two
+     * elements return 0), the elements will be <strong>not</strong>added to
+     * the resulting difference.
+     *
+     * @param <T>        The type of elements in the list.
+     * @param a          One instance.
+     * @param b          The other instance.
+     * @param comparator The comparator to use.
+     * @return a new instance with the intersection of the given two.
+     */
+    @NotNull
+    public static <T extends Comparable<T>> SkipList<T> difference(
+            @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
+            @NotNull final Comparator<@NotNull T> comparator) {
+
+        return difference(a, b, (o1, o2) -> true, comparator);
+    }
+
+    /**
      * See {@link SkipListMap#setMaxListLevel(int)}.
      *
      * @param maxListLevel The new value for the maxListLevel.

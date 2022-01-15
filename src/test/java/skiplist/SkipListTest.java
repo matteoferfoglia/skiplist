@@ -1,5 +1,6 @@
 package skiplist;
 
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
@@ -162,5 +163,26 @@ class SkipListTest {
         for (int j = EXPECTED_NUM_OF_ELEMENTS; j < destArray.length; j++) {
             assertNull(destArray[j]);
         }
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "1_2_3_4, 2_3, true, 1_4",
+            "1_2_3_4, 2_3, false, 1_2_3_4"
+    })
+    void difference(String l1AsStr, String l2AsStr, boolean predicate, String expectedDifferenceAsStr) {
+        var l1 = createSkipListOfIntegersFromString(l1AsStr);
+        var l2 = createSkipListOfIntegersFromString(l2AsStr);
+        var expected = createSkipListOfIntegersFromString(expectedDifferenceAsStr);
+        var actual = SkipList.difference(l1, l2, (BiPredicate<Integer, Integer>) (a, b) -> predicate);
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void testDifference() {
+    }
+
+    @Test
+    void testDifference1() {
     }
 }
