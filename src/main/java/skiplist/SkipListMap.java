@@ -9,6 +9,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.util.*;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -585,10 +586,9 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * <strong>All input keys are inserted at the end of this instance, WITHOUT
      * CHECKING THE ORDER</strong>.
      * <p/>
-     * <strong>This method does NOT check if duplicate keys are provided in the input
-     * collection, neither if they are already present in this instance. This method
-     * simply add all elements from the input collection at the end of this instance,
-     * in the same order in which they appear in the input collection.</strong>.
+     * <strong>This method does NOT check if keys are already present in this instance.
+     * This method simply add all elements from the input collection at the end of
+     * this instance, in the same order in which they appear in the input collection.</strong>.
      * <p/>
      * <strong>NOTICE: providing an already sorted data-structure is responsibility
      * of the programmer who invokes this method! All input keys will be added to this
@@ -610,11 +610,26 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                 .equals(keys.stream().sequential().collect(Collectors.toList()));
 
         if (!keys.isEmpty()) {
+            K previousKey = null;
             for (var key : keys) {
-                insertNodeAtEnd(new SkipListNode<>(key, null, generateRandomLevel(), keyComparator));
+                if (previousKey == null || keyComparator.compare(previousKey, key) < 0) {   // keep only distinct keys and check order
+                    insertNodeAtEnd(new SkipListNode<>(key, null, generateRandomLevel(), keyComparator));
+                    previousKey = key;
+                } else {
+                    // assert key insertion order is respected
+                    assert keyComparator.compare(previousKey, key) > 0 ?
+                            ((BiFunction<K, K, Boolean>) (previousKeyAlreadyInserted, currentKeyThatCausedTheError) -> {
+                                System.err.println("Insertion order not respected!");
+                                System.err.println("Previous key (already inserted): " + previousKeyAlreadyInserted);
+                                System.err.println("Current key (caused the error):  " + currentKeyThatCausedTheError);
+                                return false;
+                            }).apply(previousKey, key) : true; // else nothing
+                }
             }
+            return true;// whatever is given in input collection, is added to this list, which consequently will change, unless the input collection is empty
+        } else {
+            return false;
         }
-        return !keys.isEmpty(); // whatever is given in input collection, is added to this list, which consequently will change, unless the input collection is empty
     }
 
     /**
