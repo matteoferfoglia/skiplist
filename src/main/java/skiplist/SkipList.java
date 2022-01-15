@@ -487,11 +487,8 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
             } else if (comparison < 0) {
                 //noinspection unchecked
                 difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
-                var nextNode = nodeFinderA.findNextNode(currentB.getKey());
-                currentA = nextNode == null ? currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
+                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
             } else {
-                //noinspection unchecked
-                difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentB);
                 var nextNode = nodeFinderB.findNextNode(currentA.getKey());
                 currentB = nextNode == null ? currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED) : nextNode;
             }
