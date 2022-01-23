@@ -132,7 +132,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
 
         // check order
         assert sortedCollection.stream().sorted(comparator == null ? Comparator.naturalOrder() : comparator)
-                .collect(Collectors.toList()).equals(sortedCollection);
+                .collect(Collectors.toList()).equals(new ArrayList<>(sortedCollection));
 
         var skipList = new SkipList<T>();
         skipList.skipListMap.setKeyComparator(comparator);

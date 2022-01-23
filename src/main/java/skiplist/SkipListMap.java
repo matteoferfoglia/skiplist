@@ -663,10 +663,13 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         return sb.toString();
     }
 
+    /**
+     * @return The key-set of this instance, preserving its order.
+     */
     @NotNull
     @Override
     public synchronized Set<K> keySet() {
-        Set<K> keySet = new ConcurrentSkipListSet<>();
+        Set<K> keySet = new LinkedHashSet<>();
         for (var key : this) {
             keySet.add(key);
         }
