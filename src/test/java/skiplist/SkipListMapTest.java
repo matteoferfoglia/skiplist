@@ -310,6 +310,7 @@ class SkipListMapTest {
         assertEquals(initialEntries.size(), skipListMap.size());
     }
 
+    @SuppressWarnings("MismatchedQueryAndUpdateOfCollection")   // for test purposes
     @Test
     void equalSkipListMapsHaveSameHashCodeWithEmptyInstances() {
         var skipListMap1 = new SkipListMap<>();

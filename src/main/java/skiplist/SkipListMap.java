@@ -503,11 +503,14 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      *
      * @param node The node to be copied and whose copy has to be inserted at
      *             the end of this instance.
+     * @return the just inserted node.
      */
-    void copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) {
+    @NotNull
+    SkipListNode<K, V> copyNodeAndInsertAtEnd(@NotNull SkipListNode<K, V> node) {
         var newLevelForNode = generateRandomLevel();    // nodeLevel is correlated with listLevel
         var nodeToInsert = new SkipListNode<>(node, newLevelForNode);
         insertNodeAtEnd(nodeToInsert);
+        return nodeToInsert;
     }
 
     /**
