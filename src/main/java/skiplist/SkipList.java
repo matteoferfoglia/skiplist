@@ -208,7 +208,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     /**
      * Computes the intersection of the two instances passed as parameters
      * without modifying them. If both input lists contains the same element
-     * (same means that the given comparator} applied to the keys of the two
+     * (same means that the given comparator, applied to the keys of the two
      * elements return 0), the elements will be added to the resulting
      * intersection only if the predicate will evaluate to true.
      * An example of use of this method is in an Information Retrieval System
@@ -309,6 +309,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * @param comparator The comparator to use.
      * @return a new instance with the intersection of the given two.
      */
+    @SuppressWarnings("unused") // library method
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> intersection(
             @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
@@ -318,7 +319,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
     }
 
     /**
-     * Computes the unoin of the two instances passed as parameters
+     * Computes the union of the two instances passed as parameters
      * without modifying them.
      *
      * @param <T>        The type of elements in the list.
@@ -496,7 +497,6 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
             return difference;    // empty difference
         }
 
-        var nodeFinderA = new NodeFinder<>(a.getHeader());
         var nodeFinderB = new NodeFinder<>(b.getHeader());
 
         var currentA = a.getFirstNodeOrNull();
@@ -566,6 +566,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * @param comparator The comparator to use.
      * @return a new instance with the intersection of the given two.
      */
+    @SuppressWarnings("unused") // library method
     @NotNull
     public static <T extends Comparable<T>> SkipList<T> difference(
             @NotNull final SkipList<T> a, @NotNull final SkipList<T> b,
@@ -581,6 +582,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
      * @return this instance after having updated the maxListLevel.
      * @throws IllegalArgumentException If the input parameter is too low.
      */
+    @SuppressWarnings("UnusedReturnValue") // library method
     public SkipList<T> setMaxListLevel(int maxListLevel) {
         skipListMap.setMaxListLevel(maxListLevel);
         return this;

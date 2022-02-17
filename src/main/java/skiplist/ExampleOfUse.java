@@ -20,6 +20,7 @@ public class ExampleOfUse {
      *
      * @param args Command-line args
      */
+    @SuppressWarnings("unused") // illustrative purpose
     public static void main(String[] args) throws IOException, ClassNotFoundException {
         SkipListMap<Integer, Integer> m = new SkipListMap<>();
         m.put(1, null);
