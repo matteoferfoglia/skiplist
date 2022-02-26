@@ -7,6 +7,7 @@ import java.io.Serializable;
 import java.lang.reflect.Array;
 import java.util.*;
 import java.util.function.BiPredicate;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import static skiplist.SkipListMap.*;
@@ -511,8 +512,30 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
                     //noinspection unchecked    // only keys matter for SkipList
                     difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
                 }
-                currentA = currentA.getNext(LOWEST_NODE_LEVEL_INCLUDED);
-                currentB = currentB.getNext(LOWEST_NODE_LEVEL_INCLUDED);
+
+                // We are using a custom comparator, provided as input parameter,
+                // this means that the custom comparator might return 0 (~equality)
+                // also for nodes which would be different according to their natural
+                // comparison, hence (exploiting the fact that nodes are sorted
+                // according to their natural order) we must use while-loops both
+                // for node A and node B to moving the cursor ahead until the
+                // custom comparator returns 0 (i.e., until the custom comparator
+                // says that we are examining the same node).
+                Function<@NotNull SkipListNode<T, ?>, @Nullable SkipListNode<T, ?>> moveCursor = node -> {
+                    SkipListNode<T, ?> tmp;
+                    SkipListNode<T, ?> current = node;
+                    while ((tmp = current.getNext(LOWEST_NODE_LEVEL_INCLUDED)) != null
+                            && current.getKey() != null && tmp.getKey() != null
+                            && comparator.compare(current.getKey(), tmp.getKey()) == 0) {
+                        current = tmp;
+                    }
+                    // if here, the comparator said that the next node is not equal to the current one
+                    return current.getNext(LOWEST_NODE_LEVEL_INCLUDED); // move cursor ahead
+                };
+
+                currentA = moveCursor.apply(currentA);
+                currentB = moveCursor.apply(currentB);
+
             } else if (comparison < 0) {
                 //noinspection unchecked
                 difference.skipListMap.copyNodeAndInsertAtEnd((SkipListNode<T, Object>) currentA);
