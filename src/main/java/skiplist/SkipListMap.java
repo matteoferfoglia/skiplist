@@ -12,6 +12,7 @@ import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.function.BiFunction;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 
 /**
  * Implementation of a SkipList, as described in "Skip Lists: A Probabilistic Alternative
@@ -177,7 +178,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     private synchronized void initList() {
         header = new SkipListNode<>(null, null, maxListLevel, keyComparator);
         //noinspection unchecked    // generic array creation
-        rightmostNodes = Collections.nCopies(maxListLevel, header).toArray(new SkipListNode[0]);
+        rightmostNodes = IntStream.range(LOWEST_NODE_LEVEL_INCLUDED, maxListLevel)
+                .mapToObj(i -> header).toArray(SkipListNode[]::new);
         listLevel = 0;
         size = 0;
     }
@@ -412,8 +414,8 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                 listLevel = randomLevel;    // update the level of the list if the new node to insert has a level higher than the current level list
             }
             var nodeToInsert = new SkipListNode<>(key, value, randomLevel, keyComparator);
-            for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
-                SkipListNode<K, V> rightmostNodeLowerThanGivenKey = getRightmostNodeLowerThanGivenKey(nodeToInsert, level);
+            for (int level = randomLevel - 1; level >= LOWEST_NODE_LEVEL_INCLUDED; level--) {   // update pointers (actual insertion is here)
+                SkipListNode<K, V> rightmostNodeLowerThanGivenKey = nodeFinder.getRightMostNodesWithLowerKey(level);
                 var forwardPointerToSetForThisLevel = rightmostNodeLowerThanGivenKey.getNext(level);
                 forwardPointerToSetForThisLevel =
                         forwardPointerToSetForThisLevel != null
@@ -430,28 +432,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             hashCode += hashCode(key, value);
         }
         return oldValue;
-    }
-
-    /**
-     * @param node  A {@link SkipListNode}.
-     * @param level A {@link SkipListNode} level.
-     * @return The {@link SkipListNode} having the key strictly lower than the
-     * key of the input {@link SkipListNode} at the specified level.
-     */
-    @NotNull
-    private SkipListNode<K, V> getRightmostNodeLowerThanGivenKey(SkipListNode<K, V> node, int level) {
-        var rightmostNodeLowerThanGivenKey = header;
-        {
-            // Find the rightmost node at this level which is before the new node to be added
-            SkipListNode<K, V> current = header, next;
-            var skipListIterator = new SkipListIterator<>(header);
-            while (skipListIterator.hasNext(level)
-                    && (next = skipListIterator.nextNode(level)).isKeyLowerThan(node.getKey())) {
-                current = next;
-            }
-            rightmostNodeLowerThanGivenKey = current;
-        }
-        return rightmostNodeLowerThanGivenKey;
     }
 
     /**
@@ -491,7 +471,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         if (nodeToRemove != null /*node found*/) {
 
             for (int level = 0; level < listLevel; level++) {   // update pointers (actual deletion is here)
-                var rightmostNodeThisLevelBeforeTheOneToRemove = getRightmostNodeLowerThanGivenKey(nodeToRemove, level);
+                var rightmostNodeThisLevelBeforeTheOneToRemove = nodeFinder.getRightMostNodesWithLowerKey(level);
                 if (rightmostNodeThisLevelBeforeTheOneToRemove.getNext(level) != nodeToRemove) {
                     break;
                 } else {

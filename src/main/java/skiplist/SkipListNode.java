@@ -142,7 +142,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
             int level, boolean getter, @Nullable SkipListNode<K, V> newNodeIfSetterMustBeInvoked)
             throws IndexOutOfBoundsException {
 
-        if (0 <= level && level < getLevel()) {
+        if (SkipListMap.LOWEST_NODE_LEVEL_INCLUDED <= level && level < getLevel()) {
             if (getter) {
                 return forwardPointers[level];                                     // getter
             } else {

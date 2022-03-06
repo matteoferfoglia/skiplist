@@ -4,6 +4,7 @@ import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
 import java.util.Comparator;
+import java.util.stream.IntStream;
 
 import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
 
@@ -18,10 +19,18 @@ class NodeFinder<K extends Comparable<K>, V> {
     final
     SkipListNode<K, V> header;
     /**
-     * The current node, initialized with {@link #header} at the search of the search.
+     * The current node, initialized with {@link #header} and updated
+     * each time the method {@link #findNextNode(Object)} is invoked.
      */
     @NotNull
     SkipListNode<K, V> currentNode;
+
+    /**
+     * The rightmost nodes having the key lower than the key of the {@link #currentNode}.
+     */
+    @SuppressWarnings("rawtypes")
+    @NotNull
+    SkipListNode[] rightMostNodesWithLowerKey;
 
     /**
      * Constructor.
@@ -29,6 +38,9 @@ class NodeFinder<K extends Comparable<K>, V> {
     NodeFinder(@NotNull SkipListNode<K, V> header) {
         this.header = header;
         this.currentNode = header;
+        this.rightMostNodesWithLowerKey = IntStream.range(LOWEST_NODE_LEVEL_INCLUDED, header.getLevel())
+                .mapToObj(i -> header)
+                .toArray(SkipListNode[]::new);
     }
 
     /**
@@ -47,7 +59,7 @@ class NodeFinder<K extends Comparable<K>, V> {
         assert key != null;
         assert !currentNode.isSameKey(key, Comparator.naturalOrder());
 
-        for (int level = currentNode.getLevel() - 1;    // start search from the highest level node
+        for (int level = rightMostNodesWithLowerKey.length - 1;    // start search from the highest level node
              level >= LOWEST_NODE_LEVEL_INCLUDED;       // down till the lowest level or break before if node is found
              level--) {
 
@@ -57,12 +69,25 @@ class NodeFinder<K extends Comparable<K>, V> {
              * end of list is reached).
              */
             @Nullable SkipListNode<K, V> nextNode;
-            while ((nextNode = currentNode.getNext(level)) != null && nextNode.isKeyLowerThan(key)) {
-                currentNode = nextNode;
+            assert rightMostNodesWithLowerKey[level] != null;
+            //noinspection unchecked
+            while ((nextNode = (SkipListNode<K, V>) rightMostNodesWithLowerKey[level].getNext(level)) != null && nextNode.isKeyLowerThan(key)) {
+                rightMostNodesWithLowerKey[level] = nextNode;
             }
-            assert currentNode == header/*compare reference*/
-                    || (currentNode.isKeyLowerThan(key, Comparator.naturalOrder())
-                    && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
+
+            //noinspection unchecked
+            assert rightMostNodesWithLowerKey[level] == header/*compare reference*/
+                    || (((SkipListNode<K, V>) rightMostNodesWithLowerKey[level]).isKeyLowerThan(key, Comparator.naturalOrder())
+                    && isKeyLowerOrEqualToKeyOfNode(key, ((SkipListNode<K, V>) rightMostNodesWithLowerKey[level]).getNext(level)));
+
+            if (level < currentNode.getLevel()) {
+                //noinspection unchecked
+                currentNode = (SkipListNode<K, V>) rightMostNodesWithLowerKey[level];
+
+                assert currentNode == header/*compare reference*/
+                        || (currentNode.isKeyLowerThan(key, Comparator.naturalOrder())
+                        && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
+            }
         }
 
         var nextNode = currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
@@ -72,6 +97,20 @@ class NodeFinder<K extends Comparable<K>, V> {
         } else {
             return null;    // null if node not found
         }
+    }
+
+    /**
+     * @param level The {@link SkipListNode} level for which the previous is desired.
+     * @return the rightmost node at the specified level which has a key that is strictly
+     * lower than the key of the {@link #currentNode}.
+     */
+    @NotNull
+    public SkipListNode<K, V> getRightMostNodesWithLowerKey(int level) {
+        assert level >= LOWEST_NODE_LEVEL_INCLUDED;
+        assert level < rightMostNodesWithLowerKey.length;
+
+        //noinspection unchecked
+        return (SkipListNode<K, V>) rightMostNodesWithLowerKey[level];
     }
 
     /**
