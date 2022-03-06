@@ -422,7 +422,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
                                 : null;
                 nodeToInsert.setNext(level, forwardPointerToSetForThisLevel);
                 rightmostNodesLowerThanGivenKey[level].setNext(level, nodeToInsert);
-                if (rightmostNodesLowerThanGivenKey[level] == rightmostNodes[level]/*compare object reference*/) {   // update rightmost nodes of list
+                if (rightmostNodes[level].isKeyLowerThan(nodeToInsert.getKey())) {   // update rightmost nodes of list
                     rightmostNodes[level] = nodeToInsert;
                 }
             }
