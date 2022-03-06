@@ -3,7 +3,6 @@ package skiplist;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
-import java.util.Collections;
 import java.util.Comparator;
 
 import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
@@ -12,13 +11,6 @@ import static skiplist.SkipListMap.LOWEST_NODE_LEVEL_INCLUDED;
  * Class to find a node by key exploiting the known order and the forward pointers.
  */
 class NodeFinder<K extends Comparable<K>, V> {
-
-    /**
-     * The array of the rightmost {@link SkipListNode}s in the list whose
-     * keys are strictly lower than the given one.
-     */
-    @NotNull
-    final SkipListNode<K, V>[] rightmostNodes;
     /**
      * The header of the {@link SkipListMap} to which this instance refers to.
      */
@@ -35,13 +27,8 @@ class NodeFinder<K extends Comparable<K>, V> {
      * Constructor.
      */
     NodeFinder(@NotNull SkipListNode<K, V> header) {
-        this.header = (header);
+        this.header = header;
         this.currentNode = header;
-
-        // generic array creation
-        //noinspection unchecked
-        this.rightmostNodes =
-                (SkipListNode<K, V>[]) Collections.nCopies(header.getLevel(), header).toArray(new SkipListNode[0]);
     }
 
     /**
@@ -76,8 +63,6 @@ class NodeFinder<K extends Comparable<K>, V> {
             assert currentNode == header/*compare reference*/
                     || (currentNode.isKeyLowerThan(key, Comparator.naturalOrder())
                     && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
-
-            rightmostNodes[level] = currentNode;
         }
 
         var nextNode = currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
