@@ -63,6 +63,12 @@ class NodeFinder<K extends Comparable<K>, V> {
              level >= LOWEST_NODE_LEVEL_INCLUDED;       // down till the lowest level or break before if node is found
              level--) {
 
+            if (level < rightMostNodesWithLowerKey.length - 1) {
+                // Except for the highest-level, exploit the skiplist to start the search from
+                //  the upper-level rightMostNodesWithLowerKey
+                rightMostNodesWithLowerKey[level] = rightMostNodesWithLowerKey[level + 1];
+            }
+
             /*
              * While iterating over the list elements, saves the next node that
              * will be examined, or null if there will not be any next node (if
@@ -80,15 +86,13 @@ class NodeFinder<K extends Comparable<K>, V> {
                     || (((SkipListNode<K, V>) rightMostNodesWithLowerKey[level]).isKeyLowerThan(key, Comparator.naturalOrder())
                     && isKeyLowerOrEqualToKeyOfNode(key, ((SkipListNode<K, V>) rightMostNodesWithLowerKey[level]).getNext(level)));
 
-            if (level < currentNode.getLevel()) {
-                //noinspection unchecked
-                currentNode = (SkipListNode<K, V>) rightMostNodesWithLowerKey[level];
-
-                assert currentNode == header/*compare reference*/
-                        || (currentNode.isKeyLowerThan(key, Comparator.naturalOrder())
-                        && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(level)));
-            }
         }
+
+        //noinspection unchecked
+        currentNode = (SkipListNode<K, V>) rightMostNodesWithLowerKey[LOWEST_NODE_LEVEL_INCLUDED];
+        assert currentNode == header/*compare reference*/
+                || (currentNode.isKeyLowerThan(key, Comparator.naturalOrder())
+                && isKeyLowerOrEqualToKeyOfNode(key, currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED)));
 
         var nextNode = currentNode.getNext(LOWEST_NODE_LEVEL_INCLUDED);
         if (nextNode != null && nextNode.isSameKey(key)) {
