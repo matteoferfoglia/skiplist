@@ -724,7 +724,7 @@ public class SkipList<T extends Comparable<T>> implements SortedSet<T>, Serializ
         var nextNode = skipListMap.getHeader().getNext(0);
         for (int i = 0; nextNode != null; i++) {
             sb.append("\n\t\t").append(i + 1).append(":\t").append("{value: ").append(nextNode.getKey())
-                    .append(", forwardsTo: ").append(nextNode.getForwardPointersKeys());
+                    .append(", forwardsTo: ").append(nextNode.getForwardPointersKeys()).append("}");
             nextNode = nextNode.getNext(0);
         }
         sb.append("\n\t]}");
