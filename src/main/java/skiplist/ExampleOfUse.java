@@ -38,8 +38,12 @@ public class ExampleOfUse {
 
         System.out.println("Update maxListLevel:\t" + m2.setMaxListLevel());
 
-        SkipList<Integer> l1 = new SkipList<>();
+        final int MAX_LIST_LEVEL = 3;
+        SkipList<Integer> l1 = new SkipList<>(MAX_LIST_LEVEL);
         l1.add(1);
+        l1.add(9);
+        l1.add(7);
+        l1.add(8);
         l1.add(3);
         l1.add(5);
         l1.add(2);
