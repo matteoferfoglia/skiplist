@@ -127,29 +127,28 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
     /**
      * Check the validity of the given level before getting
      * or setting the {@link SkipListNode} at the specified
-     * level.
+     * level, and then perform the action (get/set).
      *
-     * @param level                         The level (it is an index, 0 is the minimum allowed).
-     * @param getter                        true if getter, false if setter.
-     * @param newValueIfSetterMustBeInvoked The new value to be set (if
-     *                                      setter must be invoked).
+     * @param level                        The level (it is an index, 0 is the minimum allowed).
+     * @param getter                       true if getter, false if setter.
+     * @param newNodeIfSetterMustBeInvoked The new node to be set (if setter must be invoked).
      * @return the instance at the specified level if getter was invoked
      * (returned valued can be null if given level is not set), this instance
      * if setter was invoked.
      * @throws IndexOutOfBoundsException If invalid level is given.
      */
     @Nullable
-    private SkipListNode<K, V> checkValidInputLevelBeforeGetOrSet(
-            int level, boolean getter, @Nullable SkipListNode<K, V> newValueIfSetterMustBeInvoked)
+    private SkipListNode<K, V> checkValidInputLevelBeforeGetOrSetAndThenPerform(
+            int level, boolean getter, @Nullable SkipListNode<K, V> newNodeIfSetterMustBeInvoked)
             throws IndexOutOfBoundsException {
 
         if (0 <= level && level < getLevel()) {
             if (getter) {
-                return forwardPointers[level];                                      // getter
+                return forwardPointers[level];                                     // getter
             } else {
-                @Nullable var oldValue = forwardPointers[level];
-                forwardPointers[level] = newValueIfSetterMustBeInvoked;             // setter
-                return oldValue;
+                @Nullable var oldNode = forwardPointers[level];
+                forwardPointers[level] = newNodeIfSetterMustBeInvoked;             // setter
+                return oldNode;
             }
         } else {
             throw new IndexOutOfBoundsException(
@@ -172,7 +171,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
      */
     @Nullable
     public SkipListNode<K, V> getNext(final int level) {
-        return checkValidInputLevelBeforeGetOrSet(level, true, null);
+        return checkValidInputLevelBeforeGetOrSetAndThenPerform(level, true, null);
     }
 
     /**
@@ -187,7 +186,7 @@ public class SkipListNode<K extends Comparable<K>, V> implements Map.Entry<K, V>
         assert newForwardPointerAtLevel == null
                 || (newForwardPointerAtLevel.key != null
                 && (this.key == null || keyComparator.compare(newForwardPointerAtLevel.key, this.key) > 0));
-        return checkValidInputLevelBeforeGetOrSet(level, false, newForwardPointerAtLevel);
+        return checkValidInputLevelBeforeGetOrSetAndThenPerform(level, false, newForwardPointerAtLevel);
     }
 
     @Override
