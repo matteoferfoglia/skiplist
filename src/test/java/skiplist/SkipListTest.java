@@ -5,6 +5,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvFileSource;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
@@ -39,6 +40,97 @@ class SkipListTest {
         var expected = createSkipListOfIntegersFromString(unionAsStr);
         var actual = SkipList.union(l1, l2);
         assertEquals(expected, actual);
+    }
+
+    @Test
+        // This is a manual test to check the correctness of the rightmost nodes
+    void putValuesAndDebugRightmostNodes() throws NoSuchFieldException, IllegalAccessException {
+        boolean DO_THIS_TEST = true;
+        if (DO_THIS_TEST) {
+
+            int[] keys = {20, 1, 2, 9, 7, 3, 8, 5, 4, 10, 6, 18, 11, 13, 12, 14, 15, 19, 17, 16};
+            final int MAX_LIST_LEVEL = 6;
+
+            SkipListMap<Integer, ?> skipListMap = new SkipListMap<>(MAX_LIST_LEVEL);
+            Field rightmostNodesField = skipListMap.getClass().getDeclaredField("rightmostNodes");
+            rightmostNodesField.setAccessible(true);
+            System.out.println("=====================================================================================");
+            for (var k : keys) {
+                skipListMap.put(k, null);
+                System.out.println("Put " + k);
+                System.out.println(skipListMap);
+                //noinspection rawtypes
+                System.out.println(
+                        "Rightmost nodes: \t" +
+                                Arrays.stream((SkipListNode[]) rightmostNodesField.get(skipListMap))
+                                        .map(SkipListNode::getKey)
+                                        .map(String::valueOf)
+                                        .collect(Collectors.joining("\t")));
+                System.out.println();
+            }
+
+            // With putAllKeys
+            SkipList<Integer> skipList = new SkipList<>(MAX_LIST_LEVEL);
+            skipList.addAll(Arrays.stream(keys).boxed().collect(Collectors.toList()));
+            System.out.println("putAllKeys =====================================================================================");
+            System.out.println(skipList);
+            Field skipListMapField = skipList.getClass().getDeclaredField("skipListMap");
+            skipListMapField.setAccessible(true);
+            //noinspection rawtypes
+            System.out.println(
+                    "Rightmost nodes: \t" +
+                            Arrays.stream((SkipListNode[]) rightmostNodesField.get(skipListMapField.get(skipList)))
+                                    .map(SkipListNode::getKey)
+                                    .map(String::valueOf)
+                                    .collect(Collectors.joining("\t")));
+            System.out.println();
+            System.out.println("=====================================================================================");
+
+
+            // With putAllKeys bis
+            System.out.println("putAllKeys bis =====================================================================================");
+            SkipList<Integer> skipList2 = new SkipList<>(MAX_LIST_LEVEL);
+            List<Integer>
+                    l1 = Arrays.stream(keys).limit((long) Math.floor(keys.length / 2.0)).boxed().collect(Collectors.toList()),
+                    l2 = Arrays.stream(keys).skip((long) Math.floor(keys.length / 2.0)).boxed().collect(Collectors.toList());
+            System.out.println("l1:  " + l1);
+            System.out.println("l2:  " + l2);
+            System.out.println();
+
+            skipList2.addAll(l1);
+            System.out.println(skipList2);
+            System.out.println();
+            skipList2.addAll(l2);
+
+            System.out.println(skipList2);
+            //noinspection rawtypes
+            System.out.println(
+                    "Rightmost nodes: \t" +
+                            Arrays.stream((SkipListNode[]) rightmostNodesField.get(skipListMapField.get(skipList2)))
+                                    .map(SkipListNode::getKey)
+                                    .map(String::valueOf)
+                                    .collect(Collectors.joining("\t")));
+            System.out.println();
+            System.out.println("=====================================================================================");
+
+            // With putAllKeys tris
+            SkipList<Integer> skipList3 = new SkipList<>(MAX_LIST_LEVEL);
+            System.out.println("putAllKeys tris =====================================================================================");
+            for (var k : keys) {
+                skipList3.addAll(List.of(k));
+                System.out.println("Put " + k);
+                System.out.println(skipList3);
+                //noinspection rawtypes
+                System.out.println(
+                        "Rightmost nodes: \t" +
+                                Arrays.stream((SkipListNode[]) rightmostNodesField.get(skipListMapField.get(skipList3)))
+                                        .map(SkipListNode::getKey)
+                                        .map(String::valueOf)
+                                        .collect(Collectors.joining("\t")));
+                System.out.println();
+            }
+            System.out.println("=====================================================================================");
+        }
     }
 
     @ParameterizedTest
