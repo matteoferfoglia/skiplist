@@ -400,7 +400,6 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     @Nullable
     private synchronized V put(@NotNull K key, V value, @NotNull NodeFinder<K, V> nodeFinder) {
         @Nullable var nodeEventuallyAlreadyPresent = nodeFinder.findNextNode(key);
-        @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
         if (nodeEventuallyAlreadyPresent != null) {
@@ -414,15 +413,16 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             }
             var nodeToInsert = new SkipListNode<>(key, value, randomLevel, keyComparator);
             for (int level = 0; level < randomLevel; level++) {   // update pointers (actual insertion is here)
-                var forwardPointerToSetForThisLevel = rightmostNodesLowerThanGivenKey[level].getNext(level);
+                SkipListNode<K, V> rightmostNodeLowerThanGivenKey = getRightmostNodeLowerThanGivenKey(nodeToInsert, level);
+                var forwardPointerToSetForThisLevel = rightmostNodeLowerThanGivenKey.getNext(level);
                 forwardPointerToSetForThisLevel =
                         forwardPointerToSetForThisLevel != null
                                 && nodeToInsert.isKeyLowerThan(forwardPointerToSetForThisLevel.getKey())  // forward pointer cannot have key lower than node key
                                 ? forwardPointerToSetForThisLevel
                                 : null;
                 nodeToInsert.setNext(level, forwardPointerToSetForThisLevel);
-                rightmostNodesLowerThanGivenKey[level].setNext(level, nodeToInsert);
-                if (rightmostNodes[level].isKeyLowerThan(nodeToInsert.getKey())) {   // update rightmost nodes of list
+                rightmostNodeLowerThanGivenKey.setNext(level, nodeToInsert);
+                if (rightmostNodes[level].getKey() == null || rightmostNodes[level].isKeyLowerThan(nodeToInsert.getKey())) {   // update rightmost nodes of list
                     rightmostNodes[level] = nodeToInsert;
                 }
             }
@@ -430,6 +430,28 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
             hashCode += hashCode(key, value);
         }
         return oldValue;
+    }
+
+    /**
+     * @param node  A {@link SkipListNode}.
+     * @param level A {@link SkipListNode} level.
+     * @return The {@link SkipListNode} having the key strictly lower than the
+     * key of the input {@link SkipListNode} at the specified level.
+     */
+    @NotNull
+    private SkipListNode<K, V> getRightmostNodeLowerThanGivenKey(SkipListNode<K, V> node, int level) {
+        var rightmostNodeLowerThanGivenKey = header;
+        {
+            // Find the rightmost node at this level which is before the new node to be added
+            SkipListNode<K, V> current = header, next;
+            var skipListIterator = new SkipListIterator<>(header);
+            while (skipListIterator.hasNext(level)
+                    && (next = skipListIterator.nextNode(level)).isKeyLowerThan(node.getKey())) {
+                current = next;
+            }
+            rightmostNodeLowerThanGivenKey = current;
+        }
+        return rightmostNodeLowerThanGivenKey;
     }
 
     /**
@@ -464,13 +486,12 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
 
         @NotNull var nodeFinder = new NodeFinder<>(header);
         @Nullable var nodeToRemove = nodeFinder.findNextNode(key);
-        @NotNull var rightmostNodesLowerThanGivenKey = nodeFinder.rightmostNodes;
 
         V oldValue = null; // the old value (if present or null by default) must be returned (this variable saves the old value before overwriting it)
         if (nodeToRemove != null /*node found*/) {
 
             for (int level = 0; level < listLevel; level++) {   // update pointers (actual deletion is here)
-                var rightmostNodeThisLevelBeforeTheOneToRemove = rightmostNodesLowerThanGivenKey[level];
+                var rightmostNodeThisLevelBeforeTheOneToRemove = getRightmostNodeLowerThanGivenKey(nodeToRemove, level);
                 if (rightmostNodeThisLevelBeforeTheOneToRemove.getNext(level) != nodeToRemove) {
                     break;
                 } else {
