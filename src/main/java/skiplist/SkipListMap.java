@@ -37,7 +37,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     /**
      * The default fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
-    static final double DEFAULT_P = 1.0 / 2;
+    static final double DEFAULT_P = 1.0 / 4;
     /**
      * The default maximum value for {@link #maxListLevel}.
      */
@@ -143,12 +143,23 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     }
 
     /**
+     * The number of levels of each node may (theoretically) grow infinitely, respecting its
+     * probability density function. This function returns an upper bound for the maximum
+     * allowed number of levels per node, trying to avoid influencing the probabilistic
+     * performance of this data structure.
+     *
      * @param expectedSize The expected size for an instance of this class.
      * @param P            The {@link #P} parameter value for the instance.
      * @return the best value for {@link  #maxListLevel} according to some heuristics.
      */
     static int getBestMaxListLevelAccordingToExpectedSize(int expectedSize, double P) {
-        return Math.max(MIN_ALLOWED_LIST_LEVEL, (int) Math.round(log(1 / P, expectedSize)));
+        final int K = 3; // parameter: the larger K the lower the probability for a node to have a level
+        //                             larger than the MaxListLevel obtained from this method; if it is
+        //                             too low, it may drastically influence the performances of this
+        //                             data structure (the probabilistic analysis might not be true anymore,
+        //                             in fact we are supposing that the level of a node has not an upper bound,
+        //                             only the one given by its probability density function)
+        return Math.max(MIN_ALLOWED_LIST_LEVEL, K * (int) Math.round(log(1 / P, expectedSize)));
     }
 
     /**
