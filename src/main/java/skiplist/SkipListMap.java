@@ -48,9 +48,9 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
     private static final double MIN_P_EXCLUDED = 0;
 
     /**
-     * The maximum value (included) for {@link #P}.
+     * The maximum value (excluded) for {@link #P}.
      */
-    private static final double MAX_P_INCLUDED = 1;
+    private static final double MAX_P_EXCLUDED = 1;
     /**
      * The {@link Comparator} to use to compare keys.
      */
@@ -100,7 +100,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
      * @param P            The fraction of the nodes with level i pointers that also have level i+1 pointers.
      */
     public SkipListMap(final int maxListLevel, final double P) {
-        if (MIN_ALLOWED_LIST_LEVEL <= maxListLevel && MIN_P_EXCLUDED < P && P <= MAX_P_INCLUDED) {
+        if (MIN_ALLOWED_LIST_LEVEL <= maxListLevel && MIN_P_EXCLUDED < P && P < MAX_P_EXCLUDED) {
             this.maxListLevel = maxListLevel;
             this.P = P;
             initList();
@@ -109,7 +109,7 @@ public class SkipListMap<K extends Comparable<K>, V> implements SortedMap<K, V>,
         } else {
             throw new IllegalArgumentException(
                     "The list level must be >=0 and " +
-                            "P value must be such that " + MIN_P_EXCLUDED + "<P<=" + MAX_P_INCLUDED);
+                            "P value must be such that " + MIN_P_EXCLUDED + "<P<" + MAX_P_EXCLUDED);
         }
     }
 
